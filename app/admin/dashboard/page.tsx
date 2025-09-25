@@ -1,142 +1,93 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
+import { AdminGuard } from "@/components/admin-guard"
+import { getAdminSession, clearAdminSession } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AdminGuard } from "@/components/admin-guard"
-import { LogOut, Download, TrendingUp, Users, FileText, Calendar } from "lucide-react"
-import { createSupabaseClient } from "@/lib/supabase/client"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BarChart3, FileText, TrendingUp, Users, LogOut, AlertTriangle, Download } from "lucide-react"
+import { exportToCSV, exportCategoryToCSV, generateSummaryReport } from "@/lib/export"
 
 interface Complaint {
   id: string
   category: string
   title: string
   details: string
+  student_name: string | null
+  student_email: string | null
+  student_id: string | null
   is_anonymous: boolean
-  student_name?: string
-  student_id?: string
-  student_email?: string
   created_at: string
 }
 
 interface CategoryStats {
   category: string
   count: number
+  percentage: number
 }
 
-export default function AdminDashboard() {
-  const router = useRouter()
+export default function AdminDashboardPage() {
   const [complaints, setComplaints] = useState<Complaint[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([])
-  const [topCategory, setTopCategory] = useState<string>("")
-  const [adminEmail, setAdminEmail] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [adminSession, setAdminSession] = useState<any>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    loadData()
+    const session = getAdminSession()
+    if (session) {
+      setAdminSession(session)
+      fetchComplaints()
+    }
   }, [])
 
-  const loadData = async () => {
+  const fetchComplaints = async () => {
     try {
-      const supabase = createSupabaseClient()
+      const supabase = createClient()
+      const { data, error } = await supabase.from("complaints").select("*").order("created_at", { ascending: false })
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        setAdminEmail(user.email || "")
-      }
+      if (error) throw error
 
-      const { data: complaintsData, error } = await supabase
-        .from("complaints")
-        .select("*")
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Error fetching complaints:", error)
-        return
-      }
-
-      setComplaints(complaintsData || [])
-
-      const stats = (complaintsData || []).reduce((acc: Record<string, number>, complaint: Complaint) => {
-        acc[complaint.category] = (acc[complaint.category] || 0) + 1
-        return acc
-      }, {})
-
-      const sortedStats = Object.entries(stats)
-        .map(([category, count]) => ({ category, count }))
-        .sort((a, b) => b.count - a.count)
-
-      setCategoryStats(sortedStats)
-      setTopCategory(sortedStats[0]?.category || "")
+      setComplaints(data || [])
+      calculateCategoryStats(data || [])
     } catch (error) {
-      console.error("Error loading data:", error)
+      console.error("Error fetching complaints:", error)
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  const handleLogout = async () => {
-    const supabase = createSupabaseClient()
-    await supabase.auth.signOut()
+  const calculateCategoryStats = (complaintsData: Complaint[]) => {
+    const categoryCount: { [key: string]: number } = {}
+
+    complaintsData.forEach((complaint) => {
+      categoryCount[complaint.category] = (categoryCount[complaint.category] || 0) + 1
+    })
+
+    const total = complaintsData.length
+    const stats = Object.entries(categoryCount)
+      .map(([category, count]) => ({
+        category,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    setCategoryStats(stats)
+  }
+
+  const handleLogout = () => {
+    clearAdminSession()
     router.push("/admin/login")
   }
 
-  const handleExportCSV = () => {
-    if (complaints.length === 0) {
-      alert("No complaints to export")
-      return
-    }
-
-    const headers = [
-      "ID",
-      "Category",
-      "Title",
-      "Details",
-      "Anonymous",
-      "Student Name",
-      "Student ID",
-      "Student Email",
-      "Created At",
-    ]
-    const csvContent = [
-      headers.join(","),
-      ...complaints.map((complaint) =>
-        [
-          complaint.id,
-          `"${complaint.category}"`,
-          `"${complaint.title}"`,
-          `"${complaint.details.replace(/"/g, '""')}"`,
-          complaint.is_anonymous,
-          complaint.is_anonymous ? "Anonymous" : `"${complaint.student_name || ""}"`,
-          complaint.is_anonymous ? "Anonymous" : `"${complaint.student_id || ""}"`,
-          complaint.is_anonymous ? "Anonymous" : `"${complaint.student_email || ""}"`,
-          complaint.created_at,
-        ].join(","),
-      ),
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `complaints-export-${new Date().toISOString().split("T")[0]}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
-  }
-
-  const filteredComplaints = selectedCategory
-    ? complaints.filter((complaint) => complaint.category === selectedCategory)
-    : complaints
-
-  const formatDate = (timestamp: string) => {
-    return new Date(timestamp).toLocaleDateString("en-US", {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -145,13 +96,43 @@ export default function AdminDashboard() {
     })
   }
 
-  if (loading) {
+  const getTopComplaint = () => {
+    return categoryStats.length > 0 ? categoryStats[0] : null
+  }
+
+  const filteredComplaints = selectedCategory ? complaints.filter((c) => c.category === selectedCategory) : complaints
+
+  const handleExportAll = () => {
+    exportToCSV(complaints, "all_complaints")
+  }
+
+  const handleExportCategory = (category: string) => {
+    exportCategoryToCSV(complaints, category)
+  }
+
+  const handleExportSummary = () => {
+    const report = generateSummaryReport(complaints)
+    const blob = new Blob([report], { type: "text/plain;charset=utf-8;" })
+    const link = document.createElement("a")
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob)
+      link.setAttribute("href", url)
+      link.setAttribute("download", `complaint_summary_${new Date().toISOString().split("T")[0]}.txt`)
+      link.style.visibility = "hidden"
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
+
+  if (isLoading) {
     return (
       <AdminGuard>
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading dashboard...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading dashboard...</p>
           </div>
         </div>
       </AdminGuard>
@@ -160,26 +141,26 @@ export default function AdminDashboard() {
 
   return (
     <AdminGuard>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         {/* Header */}
-        <header className="border-b border-border bg-card">
-          <div className="container mx-auto px-4 py-6">
-            <div className="flex items-center justify-between">
+        <div className="bg-white shadow-sm border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-2xl font-bold text-foreground">DSS Admin Dashboard</h1>
-                <p className="text-muted-foreground">Welcome back, {adminEmail}</p>
+                <h1 className="text-2xl font-bold text-gray-900">DSS Admin Dashboard</h1>
+                <p className="text-gray-600">Welcome back, {adminSession?.name}</p>
               </div>
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
+              <Button onClick={handleLogout} variant="outline" size="sm">
+                <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>
           </div>
-        </header>
+        </div>
 
-        <main className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8">
           {/* Stats Overview */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Complaints</CardTitle>
@@ -194,7 +175,7 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Categories</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{categoryStats.length}</div>
@@ -204,151 +185,242 @@ export default function AdminDashboard() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Anonymous</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{topCategory || "N/A"}</div>
-                <p className="text-xs text-muted-foreground">Most reported issue</p>
+                <div className="text-2xl font-bold">{complaints.filter((c) => c.is_anonymous).length}</div>
+                <p className="text-xs text-muted-foreground">Anonymous submissions</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">This Week</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Top Issue</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {
-                    complaints.filter((c) => {
-                      const complaintDate = new Date(c.created_at)
-                      const weekAgo = new Date()
-                      weekAgo.setDate(weekAgo.getDate() - 7)
-                      return complaintDate > weekAgo
-                    }).length
-                  }
-                </div>
-                <p className="text-xs text-muted-foreground">Recent submissions</p>
+                <div className="text-2xl font-bold">{getTopComplaint()?.category || "N/A"}</div>
+                <p className="text-xs text-muted-foreground">{getTopComplaint()?.count || 0} complaints</p>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-3">
-            {/* Category Statistics */}
-            <div className="lg:col-span-1">
+          {/* Export Data */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Export Data</CardTitle>
+              <CardDescription>Download complaint data for analysis and reporting</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4">
+                <Button onClick={handleExportAll} variant="outline">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export All Complaints (CSV)
+                </Button>
+                <Button onClick={handleExportSummary} variant="outline">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export Summary Report
+                </Button>
+                {getTopComplaint() && (
+                  <Button onClick={() => handleExportCategory(getTopComplaint()?.category || "")} variant="outline">
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Export {getTopComplaint()?.category} Complaints
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top Complaint of the Week */}
+          {getTopComplaint() && (
+            <Card className="mb-8 border-orange-200 bg-orange-50">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-orange-800">Top Complaint of the Week</CardTitle>
+                </div>
+                <CardDescription className="text-orange-700">
+                  This category needs immediate attention from the DSS team
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-orange-800">{getTopComplaint()?.category}</h3>
+                    <p className="text-orange-600">
+                      {getTopComplaint()?.count} complaints ({getTopComplaint()?.percentage}% of total)
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setSelectedCategory(getTopComplaint()?.category || null)}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="complaints">All Complaints</TabsTrigger>
+              <TabsTrigger value="categories">By Category</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              {/* Category Statistics */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Complaints by Category</CardTitle>
-                  <CardDescription>Click on a category to view individual complaints</CardDescription>
+                  <CardTitle>Complaint Categories</CardTitle>
+                  <CardDescription>Distribution of complaints by category</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {categoryStats.length > 0 ? (
-                      categoryStats.map((stat) => (
-                        <div
-                          key={stat.category}
-                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                            selectedCategory === stat.category ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
-                          }`}
-                          onClick={() => setSelectedCategory(selectedCategory === stat.category ? null : stat.category)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="font-medium">{stat.category}</span>
-                            {stat.category === topCategory && (
-                              <Badge variant="secondary" className="text-xs">
-                                Top Complaint
-                              </Badge>
-                            )}
-                          </div>
-                          <Badge variant="outline">{stat.count}</Badge>
+                  <div className="space-y-4">
+                    {categoryStats.map((stat) => (
+                      <div key={stat.category} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                          <span className="font-medium">{stat.category}</span>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground text-center py-4">No complaints submitted yet</p>
-                    )}
+                        <div className="flex items-center gap-3">
+                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-500 h-2 rounded-full"
+                              style={{ width: `${stat.percentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm text-gray-600 w-16 text-right">
+                            {stat.count} ({stat.percentage}%)
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </TabsContent>
 
-            {/* Complaints List */}
-            <div className="lg:col-span-2">
+            <TabsContent value="complaints" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex justify-between items-center">
                     <div>
-                      <CardTitle>{selectedCategory ? `${selectedCategory} Complaints` : "All Complaints"}</CardTitle>
-                      <CardDescription>
-                        {selectedCategory
-                          ? `Showing ${filteredComplaints.length} complaints in ${selectedCategory}`
-                          : `Showing all ${complaints.length} complaints`}
-                      </CardDescription>
+                      <CardTitle>All Complaints</CardTitle>
+                      <CardDescription>Complete list of submitted complaints</CardDescription>
                     </div>
-                    <div className="flex gap-2">
-                      {selectedCategory && (
-                        <Button variant="outline" size="sm" onClick={() => setSelectedCategory(null)}>
-                          Show All
-                        </Button>
-                      )}
-                      <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={complaints.length === 0}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export CSV
-                      </Button>
-                    </div>
+                    <Button onClick={handleExportAll} variant="outline" size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredComplaints.length > 0 ? (
-                      filteredComplaints
-                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                        .map((complaint) => (
-                          <div key={complaint.id} className="border rounded-lg p-4 space-y-2">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Badge variant="secondary">{complaint.category}</Badge>
-                                  {complaint.is_anonymous && <Badge variant="outline">Anonymous</Badge>}
-                                </div>
-                                <h3 className="font-semibold text-lg mb-2">{complaint.title}</h3>
-                                <p className="text-muted-foreground mb-3">{complaint.details}</p>
-                                {!complaint.is_anonymous && (
-                                  <div className="text-sm text-muted-foreground space-y-1">
-                                    <p>
-                                      <strong>Student:</strong> {complaint.student_name}
-                                    </p>
-                                    <p>
-                                      <strong>ID:</strong> {complaint.student_id}
-                                    </p>
-                                    <p>
-                                      <strong>Email:</strong> {complaint.student_email}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                              <span>ID: {complaint.id}</span>
-                              <span>{formatDate(complaint.created_at)}</span>
-                            </div>
+                    {filteredComplaints.map((complaint) => (
+                      <div key={complaint.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{complaint.category}</Badge>
+                            {complaint.is_anonymous && <Badge variant="outline">Anonymous</Badge>}
                           </div>
-                        ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">
-                          {selectedCategory
-                            ? `No complaints found in ${selectedCategory} category`
-                            : "No complaints submitted yet"}
-                        </p>
+                          <span className="text-sm text-gray-500">{formatDate(complaint.created_at)}</span>
+                        </div>
+                        <h3 className="font-semibold text-gray-900 mb-2">{complaint.title}</h3>
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{complaint.details}</p>
+                        {!complaint.is_anonymous && (
+                          <div className="text-xs text-gray-500">
+                            Submitted by: {complaint.student_name} ({complaint.student_id})
+                          </div>
+                        )}
                       </div>
+                    ))}
+                    {filteredComplaints.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">No complaints found</div>
                     )}
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </div>
-        </main>
+            </TabsContent>
+
+            <TabsContent value="categories" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {categoryStats.map((stat) => (
+                  <Card
+                    key={stat.category}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setSelectedCategory(stat.category)}
+                  >
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        {stat.category}
+                        <Badge>{stat.count}</Badge>
+                      </CardTitle>
+                      <CardDescription>{stat.percentage}% of total complaints</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${stat.percentage}%` }}></div>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                        <p className="text-sm text-gray-600">Click to view details</p>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleExportCategory(stat.category)
+                          }}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          <Download className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {selectedCategory && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle>{selectedCategory} Complaints</CardTitle>
+                      <div className="flex gap-2">
+                        <Button onClick={() => handleExportCategory(selectedCategory)} variant="outline" size="sm">
+                          <Download className="w-4 h-4 mr-2" />
+                          Export
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedCategory(null)}>
+                          Show All
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {filteredComplaints.map((complaint) => (
+                        <div key={complaint.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-semibold text-gray-900">{complaint.title}</h3>
+                            <span className="text-sm text-gray-500">{formatDate(complaint.created_at)}</span>
+                          </div>
+                          <p className="text-gray-600 text-sm mb-3">{complaint.details}</p>
+                          {!complaint.is_anonymous && (
+                            <div className="text-xs text-gray-500">
+                              Submitted by: {complaint.student_name} ({complaint.student_id})
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </AdminGuard>
   )

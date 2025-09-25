@@ -1,61 +1,28 @@
-export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
-  const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
-    try {
-      const response = await fetch(`${supabaseUrl}/rest/v1${endpoint}`, {
-        ...options,
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=representation",
-          ...options.headers,
-        },
-      })
+/**
+ * Especially important if using Fluid compute: Don't put this client in a
+ * global variable. Always create a new client within each function when using
+ * it.
+ */
+export async function createClient() {
+  const cookieStore = await cookies()
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        return { data: null, error: { message: `${response.status}: ${errorText}` } }
-      }
-
-      const data = await response.json()
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error: { message: `Network error: ${error}` } }
-    }
-  }
-
-  return {
-    from: (table: string) => ({
-      select: async (columns = "*") => {
-        return makeRequest(`/${table}?select=${columns}`)
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
       },
-
-      insert: async (data: any) => {
-        return makeRequest(`/${table}`, {
-          method: "POST",
-          body: JSON.stringify(data),
-        })
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+        } catch {
+          // The "setAll" method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
       },
-
-      update: (data: any) => ({
-        eq: async (column: string, value: any) => {
-          return makeRequest(`/${table}?${column}=eq.${value}`, {
-            method: "PATCH",
-            body: JSON.stringify(data),
-          })
-        },
-      }),
-
-      delete: () => ({
-        eq: async (column: string, value: any) => {
-          return makeRequest(`/${table}?${column}=eq.${value}`, {
-            method: "DELETE",
-          })
-        },
-      }),
-    }),
-  }
+    },
+  })
 }

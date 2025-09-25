@@ -1,49 +1,43 @@
-import { createSupabaseClient } from "@/lib/supabase/client"
+"use client"
 
 export interface AdminSession {
+  id: number
+  name: string
   email: string
   loginTime: string
 }
 
-export const getAdminSession = async (): Promise<AdminSession | null> => {
-  try {
-    const supabase = createSupabaseClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
+export function getAdminSession(): AdminSession | null {
+  if (typeof window === "undefined") return null
 
-    if (error || !user) {
+  try {
+    const session = localStorage.getItem("adminSession")
+    if (!session) return null
+
+    const parsed = JSON.parse(session)
+
+    // Check if session is still valid (24 hours)
+    const loginTime = new Date(parsed.loginTime)
+    const now = new Date()
+    const hoursDiff = (now.getTime() - loginTime.getTime()) / (1000 * 60 * 60)
+
+    if (hoursDiff > 24) {
+      localStorage.removeItem("adminSession")
       return null
     }
 
-    return {
-      email: user.email || "",
-      loginTime: user.created_at || new Date().toISOString(),
-    }
+    return parsed
   } catch {
     return null
   }
 }
 
-export const clearAdminSession = async (): Promise<void> => {
-  try {
-    const supabase = createSupabaseClient()
-    await supabase.auth.signOut()
-  } catch (error) {
-    console.error("Error signing out:", error)
+export function clearAdminSession(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("adminSession")
   }
 }
 
-export const isAdminAuthenticated = async (): Promise<boolean> => {
-  try {
-    const supabase = createSupabaseClient()
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-    return !error && !!user
-  } catch {
-    return false
-  }
+export function isAdminAuthenticated(): boolean {
+  return getAdminSession() !== null
 }

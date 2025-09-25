@@ -1,77 +1,67 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default function HomePage() {
+export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-foreground">Bowen University DSS Complaint System</h1>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/admin/login">Admin Login</Link>
-            </Button>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-8">
+              <h1 className="text-2xl font-bold text-gray-900">Bowen DSS complaints Hub</h1>
+              <nav className="hidden md:flex space-x-6">
+              </nav>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link href="/admin/login">
+                <Button className="bg-blue-600 hover:bg-blue-700"> Admin Login</Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-12">
-        <div className="max-w-2xl mx-auto">
-          {/* Welcome Card */}
-          <Card className="mb-8">
-            <CardHeader className="text-center">
-              <CardTitle className="text-3xl font-bold text-balance">
-                Welcome to the Bowen University DSS Complaint System
-              </CardTitle>
-              <CardDescription className="text-lg mt-4">
-                Submit your complaints and concerns to help us improve campus life for everyone.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-              <Button asChild size="lg">
-                <Link href="/complaint">Submit a Complaint</Link>
-              </Button>
-            </CardContent>
-          </Card>
+      <main className="container mx-auto px-4 py-16">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">- SECURE & CONFIDENTIAL</p>
+              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                The best way to voice your <span className="text-blue-600">concerns.</span>
+              </h1>
+            </div>
 
-          {/* Information Section */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">For Students</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Report issues related to water, electricity, noise, security, academics, facilities, and more. Your
-                  feedback helps us maintain a better campus environment.
-                </p>
-              </CardContent>
-            </Card>
+            <p className="text-xl text-gray-600 leading-relaxed max-w-lg">
+              Submit complaints about water, electricity, noise, security, academics, facilities, and more. Your
+              feedback helps improve campus life for everyone.
+            </p>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">For Administrators</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Access the admin dashboard to view, manage, and analyze complaints. Track trends and take action to
-                  address student concerns.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/complaint">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-lg">
+                  Submit complaints
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative">
+            <img
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/design-mode-images/TO-1-s4cE0lydp5kYmNOuo7gSryjh7vLHpI.png"
+              alt="Bowen University campus building"
+              className="w-full h-auto max-w-lg mx-auto rounded-lg shadow-lg"
+            />
           </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-muted/30 mt-16">
-        <div className="container mx-auto px-4 py-6">
-          <p className="text-center text-muted-foreground">© 2025 Bowen University DSS. All rights reserved. Designed by Software </p>
-        </div>
-      </footer>
+        <footer className="mt-24 pt-16 border-t border-gray-200">
+          <div className="text-center space-y-4">
+            <h3 className="text-xl font-semibold text-gray-900">Bowen University - Department of Student Services</h3>
+            <p className="text-gray-600">Committed to improving campus life through your feedback</p>
+            <p className="text-sm text-gray-500">Designed by Software Engineering Team</p>
+          </div>
+        </footer>
+      </main>
     </div>
   )
 }
