@@ -1,10 +1,4 @@
 interface SupabaseClient {
-  auth: {
-    signInWithPassword: (credentials: { email: string; password: string }) => Promise<{ data: any; error: any }>
-    signUp: (credentials: { email: string; password: string; options?: any }) => Promise<{ data: any; error: any }>
-    signOut: () => Promise<{ error: any }>
-    getUser: () => Promise<{ data: { user: any } | null; error: any }>
-  }
   from: (table: string) => {
     select: (columns?: string) => Promise<{ data: any[]; error: any }>
     insert: (data: any) => Promise<{ data: any; error: any }>
@@ -13,77 +7,43 @@ interface SupabaseClient {
   }
 }
 
-export function createSupabaseClient(): SupabaseClient {
+export function createClient(): SupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
   const makeRequest = async (endpoint: string, options: RequestInit = {}) => {
-    const response = await fetch(`${supabaseUrl}/rest/v1${endpoint}`, {
-      ...options,
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-        ...options.headers,
-      },
-    })
+    try {
+      console.log("[v0] Making request to:", `${supabaseUrl}/rest/v1${endpoint}`)
 
-    if (!response.ok) {
-      return { data: null, error: { message: response.statusText } }
+      const response = await fetch(`${supabaseUrl}/rest/v1${endpoint}`, {
+        ...options,
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+          ...options.headers,
+        },
+      })
+
+      console.log("[v0] Response status:", response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.log("[v0] Error response:", errorText)
+        return { data: null, error: { message: `${response.status}: ${errorText}` } }
+      }
+
+      const data = await response.json()
+      console.log("[v0] Success response:", data)
+      return { data, error: null }
+    } catch (error) {
+      console.log("[v0] Network error:", error)
+      return { data: null, error: { message: `Network error: ${error}` } }
     }
-
-    const data = await response.json()
-    return { data, error: null }
   }
 
   return {
-    auth: {
-      signInWithPassword: async ({ email, password }) => {
-        const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-          method: "POST",
-          headers: {
-            apikey: supabaseKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-        })
-
-        if (!response.ok) {
-          return { data: null, error: { message: "Invalid credentials" } }
-        }
-
-        const data = await response.json()
-        return { data, error: null }
-      },
-
-      signUp: async ({ email, password, options }) => {
-        const response = await fetch(`${supabaseUrl}/auth/v1/signup`, {
-          method: "POST",
-          headers: {
-            apikey: supabaseKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-        })
-
-        if (!response.ok) {
-          return { data: null, error: { message: "Signup failed" } }
-        }
-
-        const data = await response.json()
-        return { data, error: null }
-      },
-
-      signOut: async () => {
-        return { error: null }
-      },
-
-      getUser: async () => {
-        return { data: { user: null }, error: null }
-      },
-    },
-
     from: (table: string) => ({
       select: async (columns = "*") => {
         return makeRequest(`/${table}?select=${columns}`)
@@ -115,3 +75,5 @@ export function createSupabaseClient(): SupabaseClient {
     }),
   }
 }
+
+export const createSupabaseClient = createClient

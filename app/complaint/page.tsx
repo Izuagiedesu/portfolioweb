@@ -11,8 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, CheckCircle } from "lucide-react"
-import { createSupabaseClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 
 const categories = ["Water", "Electricity", "Noise", "Security", "Academics", "Facilities", "Others"]
 
@@ -73,9 +72,9 @@ export default function ComplaintForm() {
     setIsSubmitting(true)
 
     try {
-      const supabase = createSupabaseClient()
+      const supabase = createClient()
 
-      const { error } = await supabase.from("complaints").insert({
+      console.log("[v0] Submitting complaint with data:", {
         category: formData.category,
         title: formData.title,
         details: formData.details,
@@ -85,14 +84,27 @@ export default function ComplaintForm() {
         student_email: formData.anonymous ? null : formData.studentEmail,
       })
 
+      const { data, error } = await supabase.from("complaints").insert({
+        category: formData.category,
+        title: formData.title,
+        details: formData.details,
+        is_anonymous: formData.anonymous,
+        student_name: formData.anonymous ? null : formData.studentName,
+        student_id: formData.anonymous ? null : formData.studentId,
+        student_email: formData.anonymous ? null : formData.studentEmail,
+      })
+
+      console.log("[v0] Supabase response:", { data, error })
+
       if (error) {
-        console.error("Error submitting complaint:", error)
-        throw new Error("Failed to submit complaint. Please try again.")
+        console.error("[v0] Error submitting complaint:", error)
+        throw new Error(`Failed to submit complaint: ${error.message}`)
       }
 
+      console.log("[v0] Complaint submitted successfully")
       setIsSubmitted(true)
     } catch (error) {
-      console.error("Error submitting complaint:", error)
+      console.error("[v0] Error submitting complaint:", error)
       alert(error instanceof Error ? error.message : "An error occurred while submitting your complaint.")
     } finally {
       setIsSubmitting(false)
@@ -113,10 +125,7 @@ export default function ComplaintForm() {
           <div className="container mx-auto px-4 py-6">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Home
-                </Link>
+                <Link href="/">← Back to Home</Link>
               </Button>
               <h1 className="text-2xl font-bold text-foreground">Complaint Submitted</h1>
             </div>
@@ -127,7 +136,7 @@ export default function ComplaintForm() {
           <div className="max-w-md mx-auto">
             <Card>
               <CardContent className="pt-6 text-center">
-                <CheckCircle className="h-16 w-16 text-primary mx-auto mb-4" />
+                <div className="text-6xl text-green-500 mb-4">✓</div>
                 <h2 className="text-xl font-semibold mb-2">Thank You!</h2>
                 <p className="text-muted-foreground mb-6">
                   Your complaint has been recorded. We will review it and take appropriate action.
@@ -154,10 +163,7 @@ export default function ComplaintForm() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Home
-              </Link>
+              <Link href="/">← Back to Home</Link>
             </Button>
             <h1 className="text-2xl font-bold text-foreground">Submit a Complaint</h1>
           </div>

@@ -69,7 +69,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border bg-muted/30 mt-16">
         <div className="container mx-auto px-4 py-6">
-          <p className="text-center text-muted-foreground">© 2025 Bowen University DSS. All rights reserved.</p>
+          <p className="text-center text-muted-foreground">© 2025 Bowen University DSS. All rights reserved. Designed by Software </p>
         </div>
       </footer>
     </div>
