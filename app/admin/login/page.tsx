@@ -24,6 +24,8 @@ export default function AdminLoginPage() {
     setIsLoading(true)
     setError(null)
 
+    console.log("[v0] Starting login process for:", email)
+
     try {
       const supabase = createClient()
 
@@ -34,17 +36,35 @@ export default function AdminLoginPage() {
         .eq("email", email)
         .single()
 
+      console.log("[v0] Admin query result:", { adminData, adminError })
+
       if (adminError || !adminData) {
+        console.log("[v0] Admin not found in database")
         throw new Error("Invalid credentials")
       }
 
-      // For production, you would verify the password hash here
-      // For this demo, we'll use a simple check (in production, use bcrypt)
-      if (password !== "admin123") {
+      const response = await fetch("/api/admin/verify-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      const result = await response.json()
+      console.log("[v0] Password verification result:", result)
+
+      if (!response.ok || !result.valid) {
+        console.log("[v0] Password verification failed")
         throw new Error("Invalid credentials")
       }
 
-      // Store admin session in localStorage (in production, use proper session management)
+      console.log("[v0] Login successful, storing session")
+
+      // Store admin session in localStorage
       localStorage.setItem(
         "adminSession",
         JSON.stringify({
@@ -55,9 +75,10 @@ export default function AdminLoginPage() {
         }),
       )
 
+      console.log("[v0] Redirecting to dashboard")
       router.push("/admin/dashboard")
     } catch (error: any) {
-      console.error("Login error:", error)
+      console.error("[v0] Login error:", error)
       setError("Invalid email or password")
     } finally {
       setIsLoading(false)

@@ -47,7 +47,7 @@ export default function Home() {
 
           <div className="relative">
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/design-mode-images/TO-1-s4cE0lydp5kYmNOuo7gSryjh7vLHpI.png"
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/design-mode-images/TO-1%281%29-FAIuILu5fsYJs7ZeaBF7Pew8CZWtux.png"
               alt="Bowen University campus building"
               className="w-full h-auto max-w-lg mx-auto rounded-lg shadow-lg"
             />
@@ -58,7 +58,7 @@ export default function Home() {
           <div className="text-center space-y-4">
             <h3 className="text-xl font-semibold text-gray-900">Bowen University - Department of Student Services</h3>
             <p className="text-gray-600">Committed to improving campus life through your feedback</p>
-            <p className="text-sm text-gray-500">Designed by Software Engineering Team</p>
+            <p className="text-sm text-gray-500"> Designed by Software. </p>
           </div>
         </footer>
       </main>
