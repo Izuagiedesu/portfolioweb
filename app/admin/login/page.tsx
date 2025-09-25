@@ -11,13 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Eye, EyeOff } from "lucide-react"
-import { createSupabaseClient } from "@/lib/supabase/client"
-
-// Demo admin credentials
-const ADMIN_CREDENTIALS = {
-  email: "admin@bowenuniversity.edu.ng",
-  password: "dss2025",
-}
+import { simpleAuth } from "@/lib/simple-auth"
 
 export default function AdminLogin() {
   const router = useRouter()
@@ -58,19 +52,14 @@ export default function AdminLogin() {
     setIsSubmitting(true)
 
     try {
-      const supabase = createSupabaseClient()
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      })
+      const { user, error } = await simpleAuth.login(formData.email, formData.password)
 
       if (error) {
-        setLoginError("Invalid email or password. Please try again.")
+        setLoginError(error)
         return
       }
 
-      if (data.user) {
+      if (user) {
         router.push("/admin/dashboard")
       }
     } catch (error) {
@@ -114,20 +103,6 @@ export default function AdminLogin() {
               <CardDescription>Sign in to access the complaints management dashboard</CardDescription>
             </CardHeader>
             <CardContent>
-              <Alert className="mb-6">
-                <AlertDescription>
-                  <strong>Demo Credentials:</strong>
-                  <br />
-                  Email: admin@bowenuniversity.edu.ng
-                  <br />
-                  Password: dss2025
-                  <br />
-                  <small className="text-muted-foreground">
-                    Note: You may need to sign up first if this is your first time.
-                  </small>
-                </AlertDescription>
-              </Alert>
-
               <form onSubmit={handleSubmit} className="space-y-4">
                 {loginError && (
                   <Alert variant="destructive">

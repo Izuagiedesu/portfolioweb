@@ -162,18 +162,6 @@ export default function AdminSignup() {
               <CardDescription>Set up your admin account to manage complaints</CardDescription>
             </CardHeader>
             <CardContent>
-              <Alert className="mb-6">
-                <AlertDescription>
-                  <strong>Default Admin Credentials:</strong>
-                  <br />
-                  Email: admin@bowenuniversity.edu.ng
-                  <br />
-                  Password: dss2025
-                  <br />
-                  <small className="text-muted-foreground">You can change these if needed.</small>
-                </AlertDescription>
-              </Alert>
-
               <form onSubmit={handleSubmit} className="space-y-4">
                 {signupError && (
                   <Alert variant="destructive">
