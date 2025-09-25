@@ -1,9 +1,8 @@
 "use client"
 
 export interface AdminSession {
-  id: number
-  name: string
-  email: string
+  id: string
+  username: string
   loginTime: string
 }
 

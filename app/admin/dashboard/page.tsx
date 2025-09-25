@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { AdminGuard } from "@/components/admin-guard"
 import { getAdminSession, clearAdminSession } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart3, FileText, TrendingUp, Users, LogOut, AlertTriangle, Download } from "lucide-react"
+import { BarChart3, FileText, TrendingUp, Users, LogOut, AlertTriangle, Download, AlertCircle } from "lucide-react"
 import { exportToCSV, exportCategoryToCSV, generateSummaryReport } from "@/lib/export"
 
 interface Complaint {
@@ -36,28 +35,59 @@ export default function AdminDashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [adminSession, setAdminSession] = useState<any>(null)
+  const [dataError, setDataError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
+    console.log("[v0] Dashboard page mounted")
     const session = getAdminSession()
+    console.log("[v0] Admin session:", session)
     if (session) {
       setAdminSession(session)
       fetchComplaints()
+    } else {
+      console.log("[v0] No admin session found")
+      setIsLoading(false)
     }
   }, [])
 
   const fetchComplaints = async () => {
     try {
+      console.log("[v0] Starting to fetch complaints")
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+      console.log("[v0] Supabase URL available:", !!supabaseUrl)
+      console.log("[v0] Supabase Anon Key available:", !!supabaseAnonKey)
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.log("[v0] Supabase environment variables not available - running in demo mode")
+        setDataError("Database connection not available. Please configure Supabase integration to view complaint data.")
+        setIsLoading(false)
+        return
+      }
+
+      console.log("[v0] Creating Supabase client")
+      const { createClient } = await import("@/lib/supabase/client")
       const supabase = createClient()
+
+      console.log("[v0] Querying complaints table")
       const { data, error } = await supabase.from("complaints").select("*").order("created_at", { ascending: false })
+
+      console.log("[v0] Query result - data:", data?.length || 0, "complaints")
+      console.log("[v0] Query result - error:", error)
 
       if (error) throw error
 
       setComplaints(data || [])
       calculateCategoryStats(data || [])
+      setDataError(null)
+      console.log("[v0] Successfully loaded complaints data")
     } catch (error) {
-      console.error("Error fetching complaints:", error)
+      console.error("[v0] Error fetching complaints:", error)
+      setDataError(`Failed to load complaint data: ${error instanceof Error ? error.message : "Unknown error"}`)
     } finally {
+      console.log("[v0] Setting loading to false")
       setIsLoading(false)
     }
   }
@@ -127,6 +157,7 @@ export default function AdminDashboardPage() {
   }
 
   if (isLoading) {
+    console.log("[v0] Dashboard still loading...")
     return (
       <AdminGuard>
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -139,6 +170,9 @@ export default function AdminDashboardPage() {
     )
   }
 
+  console.log("[v0] Dashboard rendering with data error:", dataError)
+  console.log("[v0] Dashboard rendering with complaints count:", complaints.length)
+
   return (
     <AdminGuard>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -148,7 +182,7 @@ export default function AdminDashboardPage() {
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">DSS Admin Dashboard</h1>
-                <p className="text-gray-600">Welcome back, {adminSession?.name}</p>
+                <p className="text-gray-600">Welcome back, {adminSession?.username}</p>
               </div>
               <Button onClick={handleLogout} variant="outline" size="sm">
                 <LogOut className="w-4 h-4 mr-2" />
@@ -159,6 +193,31 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="container mx-auto px-4 py-8">
+          {dataError && (
+            <Card className="mb-8 border-yellow-200 bg-yellow-50">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  <CardTitle className="text-yellow-800">Database Connection Issue</CardTitle>
+                </div>
+                <CardDescription className="text-yellow-700">{dataError}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-yellow-600 text-sm mb-4">
+                  The admin dashboard is working, but we need to set up the complaints table in the database.
+                </p>
+                <div className="bg-yellow-100 p-3 rounded-md">
+                  <p className="text-yellow-800 text-sm font-medium">Next Steps:</p>
+                  <ol className="text-yellow-700 text-sm mt-2 list-decimal list-inside space-y-1">
+                    <li>Run the database setup scripts to create the complaints table</li>
+                    <li>Ensure Supabase environment variables are properly configured</li>
+                    <li>Refresh this page to load complaint data</li>
+                  </ol>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
@@ -205,6 +264,23 @@ export default function AdminDashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Show success message when no data error */}
+          {!dataError && (
+            <Card className="mb-8 border-green-200 bg-green-50">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 bg-green-600 rounded-full flex items-center justify-center">
+                    <div className="h-2 w-2 bg-white rounded-full"></div>
+                  </div>
+                  <CardTitle className="text-green-800">Dashboard Active</CardTitle>
+                </div>
+                <CardDescription className="text-green-700">
+                  Admin dashboard is successfully connected to the database and ready to manage complaints.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
 
           {/* Export Data */}
           <Card className="mb-8">

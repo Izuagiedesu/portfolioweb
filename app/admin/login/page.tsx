@@ -1,19 +1,19 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { verifyPassword } from "@/lib/password-utils"
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -21,65 +21,47 @@ export default function AdminLoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("[v0] Admin login form submitted")
+    console.log("[v0] Username entered:", username)
+
     setIsLoading(true)
     setError(null)
-
-    console.log("[v0] Starting login process for:", email)
 
     try {
       const supabase = createClient()
 
-      // Check if admin exists in our admins table
-      const { data: adminData, error: adminError } = await supabase
-        .from("admins")
+      const { data: adminUser, error: queryError } = await supabase
+        .from("admin_users")
         .select("*")
-        .eq("email", email)
+        .eq("username", username)
         .single()
 
-      console.log("[v0] Admin query result:", { adminData, adminError })
-
-      if (adminError || !adminData) {
-        console.log("[v0] Admin not found in database")
-        throw new Error("Invalid credentials")
+      if (queryError || !adminUser) {
+        console.log("[v0] Admin user not found:", queryError?.message)
+        throw new Error("Invalid username or password")
       }
 
-      const response = await fetch("/api/admin/verify-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      })
-
-      const result = await response.json()
-      console.log("[v0] Password verification result:", result)
-
-      if (!response.ok || !result.valid) {
-        console.log("[v0] Password verification failed")
-        throw new Error("Invalid credentials")
+      if (!verifyPassword(password, username)) {
+        console.log("[v0] Invalid password for username:", username)
+        throw new Error("Invalid username or password")
       }
 
-      console.log("[v0] Login successful, storing session")
+      console.log("[v0] Admin authentication successful")
 
-      // Store admin session in localStorage
-      localStorage.setItem(
-        "adminSession",
-        JSON.stringify({
-          id: adminData.id,
-          name: adminData.name,
-          email: adminData.email,
-          loginTime: new Date().toISOString(),
-        }),
-      )
+      const adminSession = {
+        id: adminUser.id,
+        username: adminUser.username,
+        loginTime: new Date().toISOString(),
+      }
 
-      console.log("[v0] Redirecting to dashboard")
+      localStorage.setItem("adminSession", JSON.stringify(adminSession))
+      console.log("[v0] Admin session stored:", adminSession)
+
+      console.log("[v0] Redirecting to dashboard...")
       router.push("/admin/dashboard")
     } catch (error: any) {
-      console.error("[v0] Login error:", error)
-      setError("Invalid email or password")
+      console.log("[v0] Login error:", error.message)
+      setError("Invalid username or password. Please contact DSS for access.")
     } finally {
       setIsLoading(false)
     }
@@ -99,19 +81,19 @@ export default function AdminLoginPage() {
           <CardHeader>
             <CardTitle className="text-2xl text-center">Admin Login</CardTitle>
             <CardDescription className="text-center">
-              DSS Staff - Sign in to access the complaint management dashboard
+              DSS Staff - Enter your username and password to access the dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@bowenuniversity.edu.ng"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                 />
               </div>
@@ -121,6 +103,7 @@ export default function AdminLoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -134,9 +117,18 @@ export default function AdminLoginPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? "Signing in..." : "Access Dashboard"}
               </Button>
             </form>
+
+            <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-xs text-blue-600 font-medium mb-2">Development Access:</p>
+              <p className="text-xs text-blue-500">
+                Usernames: admin, dss, complaints, university, bowen
+                <br />
+                Passwords: admin123, dss2024, complaints, university, bowen123
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
