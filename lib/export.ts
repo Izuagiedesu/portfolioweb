@@ -3,6 +3,8 @@ export interface ExportComplaint {
   category: string
   title: string
   details: string
+  intensity: string
+  urgency: string
   student_name: string | null
   student_email: string | null
   student_id: string | null
@@ -11,43 +13,71 @@ export interface ExportComplaint {
 }
 
 export function exportToCSV(complaints: ExportComplaint[], filename = "complaints") {
-  // Define CSV headers
   const headers = [
-    "ID",
+    "Complaint ID",
     "Category",
     "Title",
     "Details",
+    "Intensity Level",
+    "Urgency Level",
     "Student Name",
     "Student Email",
     "Student ID",
-    "Anonymous",
+    "Anonymous Submission",
     "Date Submitted",
+    "Time Submitted",
   ]
 
-  // Convert complaints to CSV rows
-  const csvRows = complaints.map((complaint) => [
-    complaint.id,
-    complaint.category,
-    `"${complaint.title.replace(/"/g, '""')}"`, // Escape quotes in title
-    `"${complaint.details.replace(/"/g, '""')}"`, // Escape quotes in details
-    complaint.is_anonymous ? "N/A" : complaint.student_name || "N/A",
-    complaint.is_anonymous ? "N/A" : complaint.student_email || "N/A",
-    complaint.is_anonymous ? "N/A" : complaint.student_id || "N/A",
-    complaint.is_anonymous ? "Yes" : "No",
-    new Date(complaint.created_at).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  ])
+  const csvRows = complaints.map((complaint) => {
+    const submissionDate = new Date(complaint.created_at)
 
-  // Combine headers and rows
-  const csvContent = [headers, ...csvRows].map((row) => row.join(",")).join("\n")
+    // Helper function to properly escape CSV values
+    const escapeCSVValue = (value: string | null | undefined): string => {
+      if (!value) return ""
+      // Convert to string and escape quotes by doubling them
+      const stringValue = String(value).replace(/"/g, '""')
+      // Always wrap in quotes to handle commas, newlines, and special characters
+      return `"${stringValue}"`
+    }
+
+    return [
+      escapeCSVValue(complaint.id),
+      escapeCSVValue(complaint.category),
+      escapeCSVValue(complaint.title),
+      escapeCSVValue(complaint.details),
+      escapeCSVValue(complaint.intensity),
+      escapeCSVValue(complaint.urgency),
+      escapeCSVValue(complaint.is_anonymous ? "N/A" : complaint.student_name || "N/A"),
+      escapeCSVValue(complaint.is_anonymous ? "N/A" : complaint.student_email || "N/A"),
+      escapeCSVValue(complaint.is_anonymous ? "N/A" : complaint.student_id || "N/A"),
+      escapeCSVValue(complaint.is_anonymous ? "Yes" : "No"),
+      escapeCSVValue(
+        submissionDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }),
+      ),
+      escapeCSVValue(
+        submissionDate.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+      ),
+    ]
+  })
+
+  const csvHeader = headers.map((header) => `"${header}"`).join(",")
+  const csvBody = csvRows.map((row) => row.join(",")).join("\n")
+  const csvContent = csvHeader + "\n" + csvBody
+
+  // Add BOM for proper Excel UTF-8 handling
+  const BOM = "\uFEFF"
+  const finalContent = BOM + csvContent
 
   // Create and download the file
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+  const blob = new Blob([finalContent], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
 
   if (link.download !== undefined) {

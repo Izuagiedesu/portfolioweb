@@ -536,22 +536,30 @@ function DashboardContent() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Intensity</TableHead>
-                            <TableHead>Urgency</TableHead>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Details</TableHead>
+                            <TableHead className="w-[100px]">ID</TableHead>
+                            <TableHead className="w-[120px]">Category</TableHead>
+                            <TableHead className="w-[200px]">Title</TableHead>
+                            <TableHead className="w-[100px]">Intensity</TableHead>
+                            <TableHead className="w-[100px]">Urgency</TableHead>
+                            <TableHead className="w-[150px]">Student Info</TableHead>
+                            <TableHead className="w-[120px]">Date Submitted</TableHead>
+                            <TableHead className="min-w-[250px]">Details</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {complaints.map((complaint) => (
                             <TableRow key={complaint.id}>
+                              <TableCell className="font-mono text-xs">{complaint.id.slice(0, 8)}...</TableCell>
                               <TableCell>
-                                <Badge variant="secondary">{complaint.category}</Badge>
+                                <Badge variant="secondary" className="whitespace-nowrap">
+                                  {complaint.category}
+                                </Badge>
                               </TableCell>
-                              <TableCell className="font-medium max-w-48 truncate">{complaint.title}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="max-w-[200px] truncate" title={complaint.title}>
+                                  {complaint.title}
+                                </div>
+                              </TableCell>
                               <TableCell>
                                 <Badge
                                   variant={
@@ -561,6 +569,7 @@ function DashboardContent() {
                                         ? "default"
                                         : "secondary"
                                   }
+                                  className="whitespace-nowrap"
                                 >
                                   {complaint.intensity}
                                 </Badge>
@@ -574,24 +583,43 @@ function DashboardContent() {
                                         ? "default"
                                         : "secondary"
                                   }
+                                  className="whitespace-nowrap"
                                 >
                                   {complaint.urgency}
                                 </Badge>
                               </TableCell>
                               <TableCell>
                                 {complaint.is_anonymous ? (
-                                  <Badge variant="outline">Anonymous</Badge>
+                                  <Badge variant="outline" className="whitespace-nowrap">
+                                    Anonymous
+                                  </Badge>
                                 ) : (
                                   <div className="text-sm">
-                                    <div>{complaint.student_name}</div>
-                                    <div className="text-gray-500">{complaint.student_id}</div>
+                                    <div
+                                      className="font-medium truncate max-w-[140px]"
+                                      title={complaint.student_name || ""}
+                                    >
+                                      {complaint.student_name}
+                                    </div>
+                                    <div
+                                      className="text-gray-500 text-xs truncate max-w-[140px]"
+                                      title={complaint.student_id || ""}
+                                    >
+                                      {complaint.student_id}
+                                    </div>
                                   </div>
                                 )}
                               </TableCell>
-                              <TableCell className="text-sm text-gray-500">
+                              <TableCell className="text-sm text-gray-500 whitespace-nowrap">
                                 {formatDate(complaint.created_at)}
                               </TableCell>
-                              <TableCell className="max-w-64 truncate text-sm">{complaint.details}</TableCell>
+                              <TableCell>
+                                <div className="max-w-[250px] text-sm" title={complaint.details}>
+                                  {complaint.details.length > 100
+                                    ? `${complaint.details.substring(0, 100)}...`
+                                    : complaint.details}
+                                </div>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
