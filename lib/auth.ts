@@ -3,6 +3,7 @@
 export interface AdminSession {
   id: string
   username: string
+  authenticated: boolean
   loginTime: string
 }
 
@@ -22,6 +23,10 @@ export function getAdminSession(): AdminSession | null {
 
     if (hoursDiff > 24) {
       localStorage.removeItem("adminSession")
+      return null
+    }
+
+    if (!parsed.authenticated) {
       return null
     }
 
