@@ -41,6 +41,10 @@ function DashboardContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adminSession, setAdminSession] = useState<any>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [pageSize] = useState(50) // Fixed page size
   const router = useRouter()
 
   const handleExportAll = () => {
@@ -96,24 +100,17 @@ function DashboardContent() {
     }
   }
 
-  useEffect(() => {
-    console.log("[v0] Dashboard content mounted on client")
-    const session = getAdminSession()
-    console.log("[v0] Client-side admin session:", session)
-
-    if (session) {
-      setAdminSession(session)
-      fetchComplaints()
-    } else {
-      setIsLoading(false)
-    }
-  }, [])
-
-  const fetchComplaints = async () => {
+  const fetchComplaints = async (page = 1, category = "all") => {
     try {
-      console.log("[v0] Fetching complaints from API...")
+      console.log(`[v0] Fetching complaints from API - page ${page}, category: ${category}`)
 
-      const response = await fetch("/api/complaints", {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pageSize.toString(),
+        ...(category !== "all" && { category }),
+      })
+
+      const response = await fetch(`/api/complaints?${params}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -128,7 +125,14 @@ function DashboardContent() {
       console.log("[v0] Fetched complaints:", data)
 
       setComplaints(data.complaints || [])
-      calculateCategoryStats(data.complaints || [])
+      setCurrentPage(data.page || 1)
+      setTotalPages(data.totalPages || 1)
+      setTotalCount(data.totalCount || 0)
+
+      // Only calculate category stats from all complaints (not paginated)
+      if (category === "all" && page === 1) {
+        await fetchCategoryStats()
+      }
       setError(null)
     } catch (error: any) {
       console.error("[v0] Failed to fetch complaints:", error)
@@ -137,6 +141,51 @@ function DashboardContent() {
       setIsLoading(false)
     }
   }
+
+  const fetchCategoryStats = async () => {
+    try {
+      const response = await fetch("/api/complaints?limit=1000", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        calculateCategoryStats(data.complaints || [])
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch category stats:", error)
+    }
+  }
+
+  useEffect(() => {
+    console.log("[v0] Dashboard content mounted on client")
+    const session = getAdminSession()
+    console.log("[v0] Client-side admin session:", session)
+
+    if (session) {
+      setAdminSession(session)
+      fetchComplaints(1, tableFilter)
+
+      const interval = setInterval(() => {
+        console.log("[v0] Auto-refreshing complaints data...")
+        fetchComplaints(currentPage, tableFilter)
+      }, 60000) // 60 seconds instead of 30
+
+      return () => clearInterval(interval)
+    } else {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (adminSession) {
+      setCurrentPage(1)
+      fetchComplaints(1, tableFilter)
+    }
+  }, [tableFilter])
 
   const calculateCategoryStats = (complaintsData: Complaint[]) => {
     const categoryCount: { [key: string]: number } = {}
@@ -201,7 +250,7 @@ function DashboardContent() {
 
   const handleRefresh = () => {
     setIsLoading(true)
-    fetchComplaints()
+    fetchComplaints(currentPage, tableFilter)
   }
 
   const formatDate = (dateString: string) => {
@@ -309,7 +358,7 @@ function DashboardContent() {
                   <span className="text-muted-foreground">📄</span>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{complaints.length}</div>
+                  <div className="text-2xl font-bold">{totalCount}</div>
                   <p className="text-xs text-muted-foreground">All time submissions</p>
                 </CardContent>
               </Card>
@@ -431,7 +480,9 @@ function DashboardContent() {
                 <div className="flex justify-between items-center">
                   <div>
                     <CardTitle>Complaints Table</CardTitle>
-                    <CardDescription>View and filter all complaints in a detailed table format</CardDescription>
+                    <CardDescription>
+                      Showing {complaints.length} of {totalCount} complaints (Page {currentPage} of {totalPages})
+                    </CardDescription>
                   </div>
                   <div className="flex gap-3 items-center">
                     <Select value={tableFilter} onValueChange={setTableFilter}>
@@ -452,7 +503,7 @@ function DashboardContent() {
                         const csvContent =
                           "data:text/csv;charset=utf-8," +
                           "ID,Category,Title,Details,Intensity,Urgency,Student Name,Student ID,Anonymous,Date\\n" +
-                          tableFilteredComplaints
+                          complaints
                             .map(
                               (c) =>
                                 `"${c.id}","${c.category}","${c.title}","${c.details}","${c.intensity}","${c.urgency}","${c.student_name || "N/A"}","${c.student_id || "N/A"}","${c.is_anonymous}","${c.created_at}"`,
@@ -464,7 +515,7 @@ function DashboardContent() {
                         link.setAttribute("href", encodedUri)
                         link.setAttribute(
                           "download",
-                          `${tableFilter === "all" ? "all" : tableFilter.toLowerCase()}_complaints_table.csv`,
+                          `${tableFilter === "all" ? "all" : tableFilter.toLowerCase()}_complaints_page_${currentPage}.csv`,
                         )
                         document.body.appendChild(link)
                         link.click()
@@ -473,76 +524,123 @@ function DashboardContent() {
                       variant="outline"
                       size="sm"
                     >
-                      ⬇ Export CSV
+                      ⬇ Export Current Page
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                {tableFilteredComplaints.length > 0 ? (
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Intensity</TableHead>
-                          <TableHead>Urgency</TableHead>
-                          <TableHead>Student</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Details</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tableFilteredComplaints.map((complaint) => (
-                          <TableRow key={complaint.id}>
-                            <TableCell>
-                              <Badge variant="secondary">{complaint.category}</Badge>
-                            </TableCell>
-                            <TableCell className="font-medium max-w-48 truncate">{complaint.title}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  complaint.intensity === "Critical"
-                                    ? "destructive"
-                                    : complaint.intensity === "High"
-                                      ? "default"
-                                      : "secondary"
-                                }
-                              >
-                                {complaint.intensity}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  complaint.urgency === "Critical"
-                                    ? "destructive"
-                                    : complaint.urgency === "High"
-                                      ? "default"
-                                      : "secondary"
-                                }
-                              >
-                                {complaint.urgency}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {complaint.is_anonymous ? (
-                                <Badge variant="outline">Anonymous</Badge>
-                              ) : (
-                                <div className="text-sm">
-                                  <div>{complaint.student_name}</div>
-                                  <div className="text-gray-500">{complaint.student_id}</div>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm text-gray-500">{formatDate(complaint.created_at)}</TableCell>
-                            <TableCell className="max-w-64 truncate text-sm">{complaint.details}</TableCell>
+                {complaints.length > 0 ? (
+                  <>
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Intensity</TableHead>
+                            <TableHead>Urgency</TableHead>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Details</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {complaints.map((complaint) => (
+                            <TableRow key={complaint.id}>
+                              <TableCell>
+                                <Badge variant="secondary">{complaint.category}</Badge>
+                              </TableCell>
+                              <TableCell className="font-medium max-w-48 truncate">{complaint.title}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    complaint.intensity === "Critical"
+                                      ? "destructive"
+                                      : complaint.intensity === "High"
+                                        ? "default"
+                                        : "secondary"
+                                  }
+                                >
+                                  {complaint.intensity}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    complaint.urgency === "Critical"
+                                      ? "destructive"
+                                      : complaint.urgency === "High"
+                                        ? "default"
+                                        : "secondary"
+                                  }
+                                >
+                                  {complaint.urgency}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {complaint.is_anonymous ? (
+                                  <Badge variant="outline">Anonymous</Badge>
+                                ) : (
+                                  <div className="text-sm">
+                                    <div>{complaint.student_name}</div>
+                                    <div className="text-gray-500">{complaint.student_id}</div>
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-sm text-gray-500">
+                                {formatDate(complaint.created_at)}
+                              </TableCell>
+                              <TableCell className="max-w-64 truncate text-sm">{complaint.details}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-6">
+                        <div className="text-sm text-gray-500">
+                          Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalCount)}{" "}
+                          of {totalCount} complaints
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchComplaints(currentPage - 1, tableFilter)}
+                            disabled={currentPage <= 1}
+                          >
+                            ← Previous
+                          </Button>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                              const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  variant={pageNum === currentPage ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => fetchComplaints(pageNum, tableFilter)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  {pageNum}
+                                </Button>
+                              )
+                            })}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchComplaints(currentPage + 1, tableFilter)}
+                            disabled={currentPage >= totalPages}
+                          >
+                            Next →
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-gray-500">
