@@ -6,8 +6,13 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "My Website",
-  description: "A simple website built with Next.js",
+  title: "BUFH ",
+  description: "Submit and manage university complaints efficiently",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon-16x16.jpg",
+    apple: "/apple-touch-icon.jpg",
+  },
     generator: 'v0.app'
 }
 

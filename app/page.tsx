@@ -46,7 +46,7 @@ export default function Home() {
 
           <div className="relative">
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/design-mode-images/TO-1%281%29-FAIuILu5fsYJs7ZeaBF7Pew8CZWtux.png"
+              src="/images/design-mode/TO-1%281%29.png"
               alt="Bowen University campus building"
               className="w-full h-auto max-w-lg mx-auto rounded-lg shadow-lg"
             />
