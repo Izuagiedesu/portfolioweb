@@ -366,9 +366,6 @@ function DashboardContent() {
                         {getTopComplaint()?.count} complaints ({getTopComplaint()?.percentage}% of total)
                       </p>
                     </div>
-                    <Button onClick={handleViewTopComplaintDetails} className="bg-orange-600 hover:bg-orange-700">
-                      View Details
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
