@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft } from "lucide-react"
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
@@ -42,6 +41,7 @@ export default function AdminLoginPage() {
 
       const adminSession = {
         id: "admin",
+        username: "admin",
         authenticated: true,
         loginTime: new Date().toISOString(),
       }
@@ -53,7 +53,7 @@ export default function AdminLoginPage() {
       router.push("/admin/dashboard")
     } catch (error: any) {
       console.log("[v0] Login error:", error.message)
-      setError("Invalid password. Please enter the correct admin password.")
+      setError("Invalid password. Please contact the system administrator for access.")
     } finally {
       setIsLoading(false)
     }
@@ -64,8 +64,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-6">
           <Link href="/" className="inline-flex items-center text-blue-600 hover:text-blue-800">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
+            ← Back to Home
           </Link>
         </div>
 
@@ -98,11 +97,6 @@ export default function AdminLoginPage() {
                 {isLoading ? "Verifying..." : "Access Dashboard"}
               </Button>
             </form>
-
-            <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-xs text-blue-600 font-medium mb-2">Database Authentication:</p>
-              <p className="text-xs text-blue-500">Password stored securely in database</p>
-            </div>
           </CardContent>
         </Card>
       </div>
