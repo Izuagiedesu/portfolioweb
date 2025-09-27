@@ -11,6 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts"
 
 interface Complaint {
@@ -31,6 +39,99 @@ interface CategoryStats {
   category: string
   count: number
   percentage: number
+}
+
+function ComplaintDetailsModal({ complaint }: { complaint: Complaint }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-auto p-1 text-left justify-start">
+          <div className="max-w-[250px] text-sm truncate">
+            {complaint.details.length > 100 ? `${complaint.details.substring(0, 100)}...` : complaint.details}
+          </div>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Badge variant="secondary">{complaint.category}</Badge>
+            {complaint.title}
+          </DialogTitle>
+          <DialogDescription>
+            Complaint ID: {complaint.id} • Submitted:{" "}
+            {new Date(complaint.created_at).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-semibold text-sm text-gray-600 mb-1">Intensity Level</h4>
+              <Badge
+                variant={
+                  complaint.intensity === "Critical"
+                    ? "destructive"
+                    : complaint.intensity === "High"
+                      ? "default"
+                      : "secondary"
+                }
+              >
+                {complaint.intensity}
+              </Badge>
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm text-gray-600 mb-1">Urgency Level</h4>
+              <Badge
+                variant={
+                  complaint.urgency === "Critical"
+                    ? "destructive"
+                    : complaint.urgency === "High"
+                      ? "default"
+                      : "secondary"
+                }
+              >
+                {complaint.urgency}
+              </Badge>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-sm text-gray-600 mb-1">Student Information</h4>
+            {complaint.is_anonymous ? (
+              <Badge variant="outline">Anonymous Submission</Badge>
+            ) : (
+              <div className="text-sm space-y-1">
+                <div>
+                  <strong>Name:</strong> {complaint.student_name}
+                </div>
+                <div>
+                  <strong>Student ID:</strong> {complaint.student_id}
+                </div>
+                {complaint.student_email && (
+                  <div>
+                    <strong>Email:</strong> {complaint.student_email}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-sm text-gray-600 mb-2">Full Complaint Details</h4>
+            <div className="bg-gray-50 p-4 rounded-lg border">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{complaint.details}</p>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function DashboardContent() {
@@ -614,11 +715,7 @@ function DashboardContent() {
                                 {formatDate(complaint.created_at)}
                               </TableCell>
                               <TableCell>
-                                <div className="max-w-[250px] text-sm" title={complaint.details}>
-                                  {complaint.details.length > 100
-                                    ? `${complaint.details.substring(0, 100)}...`
-                                    : complaint.details}
-                                </div>
+                                <ComplaintDetailsModal complaint={complaint} />
                               </TableCell>
                             </TableRow>
                           ))}
