@@ -44,11 +44,15 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            <img
-              src="/images/design-mode/TO-1%281%29.png"
-              alt="Bowen University campus building"
-              className="w-full h-auto max-w-lg mx-auto rounded-lg shadow-lg"
-            />
+            <div className="w-full h-96 rounded-lg shadow-lg overflow-hidden bg-gray-200">
+              <img
+                src="https://bowen.edu.ng/wp-content/uploads/2022/11/IMG_6020.jpg"
+                alt="Bowen University Campus"
+                className="w-full h-full object-cover"
+                loading="eager"
+                fetchPriority="high"
+              />
+            </div>
           </div>
         </div>
 
