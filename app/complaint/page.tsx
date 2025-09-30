@@ -15,7 +15,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft } from "lucide-react"
 
-const categories = ["Water", "Electricity", "Noise", "Security", "Academics", "Facilities", "Others"]
+const categories = [
+  "Hostel/Accommodation",
+  "Water Supply",
+  "Electricity/Power",
+  "Noise Disturbance",
+  "Security",
+  "Health/Medical",
+  "Academic Issues",
+  "Harassment/Misconduct",
+  "Food Services",
+  "Sanitation/Cleanliness",
+  "Internet/IT Services",
+  "Transportation",
+  "Facilities/Infrastructure",
+  "Administrative Issues",
+  "Library Services",
+  "Sports/Recreation",
+  "Chapel/Religious Services",
+  "Maintenance/Repairs",
+  "Others",
+]
 
 export default function ComplaintPage() {
   const [formData, setFormData] = useState({
