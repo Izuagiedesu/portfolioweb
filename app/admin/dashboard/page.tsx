@@ -26,8 +26,9 @@ interface Complaint {
   category: string
   title: string
   details: string
-  intensity: string
-  urgency: string
+  priority: string
+  hostel?: string
+  room_department?: string
   student_name: string | null
   student_email: string | null
   student_id: string | null
@@ -68,37 +69,38 @@ function ComplaintDetailsModal({ complaint }: { complaint: Complaint }) {
             })}
           </DialogDescription>
         </DialogHeader>
-
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          {(complaint.hostel || complaint.room_department) && (
             <div>
-              <h4 className="font-semibold text-sm text-gray-600 mb-1">Intensity Level</h4>
-              <Badge
-                variant={
-                  complaint.intensity === "Critical"
-                    ? "destructive"
-                    : complaint.intensity === "High"
-                      ? "default"
-                      : "secondary"
-                }
-              >
-                {complaint.intensity}
-              </Badge>
+              <h4 className="font-semibold text-sm text-gray-600 mb-1">Location</h4>
+              <div className="text-sm space-y-1">
+                {complaint.hostel && (
+                  <div>
+                    <strong>Hostel/College:</strong> {complaint.hostel}
+                  </div>
+                )}
+                {complaint.room_department && (
+                  <div>
+                    <strong>Room/Department:</strong> {complaint.room_department}
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-sm text-gray-600 mb-1">Urgency Level</h4>
-              <Badge
-                variant={
-                  complaint.urgency === "Critical"
-                    ? "destructive"
-                    : complaint.urgency === "High"
-                      ? "default"
-                      : "secondary"
-                }
-              >
-                {complaint.urgency}
-              </Badge>
-            </div>
+          )}
+
+          <div>
+            <h4 className="font-semibold text-sm text-gray-600 mb-1">Priority Level</h4>
+            <Badge
+              variant={
+                complaint.priority === "Critical"
+                  ? "destructive"
+                  : complaint.priority === "High"
+                    ? "default"
+                    : "secondary"
+              }
+            >
+              {complaint.priority}
+            </Badge>
           </div>
 
           <div>
@@ -150,19 +152,33 @@ function DashboardContent() {
 
   const handleExportAll = () => {
     const csvContent =
-      "data:text/csv;charset=utf-8," +
-      "ID,Category,Title,Details,Intensity,Urgency,Student Name,Student ID,Anonymous,Date\\n" +
+      '\uFEFF"ID","Category","Title","Details","Priority","Hostel","Room/Department","Student Name","Student ID","Anonymous","Date","Time"\n' +
       complaints
-        .map(
-          (c) =>
-            `"${c.id}","${c.category}","${c.title}","${c.details}","${c.intensity}","${c.urgency}","${c.student_name || "N/A"}","${c.student_id || "N/A"}","${c.is_anonymous}","${c.created_at}"`,
-        )
-        .join("\\n")
+        .map((c) => {
+          const date = new Date(c.created_at)
+          return [
+            `"${c.id}"`,
+            `"${c.category}"`,
+            `"${(c.title || "").replace(/"/g, '""')}"`,
+            `"${c.details.replace(/"/g, '""')}"`,
+            `"${c.priority}"`,
+            `"${c.hostel || "N/A"}"`,
+            `"${c.room_department || "N/A"}"`,
+            `"${c.student_name || "N/A"}"`,
+            `"${c.student_id || "N/A"}"`,
+            `"${c.is_anonymous ? "Yes" : "No"}"`,
+            `"${date.toLocaleDateString()}"`,
+            `"${date.toLocaleTimeString()}"`,
+          ].join(",")
+        })
+        .join("\n")
 
-    const encodedUri = encodeURI(csvContent)
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
     link.setAttribute("download", "all_complaints.csv")
+    link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -171,19 +187,33 @@ function DashboardContent() {
   const handleExportCategory = (category: string) => {
     const filteredComplaints = complaints.filter((c) => c.category === category)
     const csvContent =
-      "data:text/csv;charset=utf-8," +
-      "ID,Category,Title,Details,Intensity,Urgency,Student Name,Student ID,Anonymous,Date\\n" +
+      '\uFEFF"ID","Category","Title","Details","Priority","Hostel","Room/Department","Student Name","Student ID","Anonymous","Date","Time"\n' +
       filteredComplaints
-        .map(
-          (c) =>
-            `"${c.id}","${c.category}","${c.title}","${c.details}","${c.intensity}","${c.urgency}","${c.student_name || "N/A"}","${c.student_id || "N/A"}","${c.is_anonymous}","${c.created_at}"`,
-        )
-        .join("\\n")
+        .map((c) => {
+          const date = new Date(c.created_at)
+          return [
+            `"${c.id}"`,
+            `"${c.category}"`,
+            `"${(c.title || "").replace(/"/g, '""')}"`,
+            `"${c.details.replace(/"/g, '""')}"`,
+            `"${c.priority}"`,
+            `"${c.hostel || "N/A"}"`,
+            `"${c.room_department || "N/A"}"`,
+            `"${c.student_name || "N/A"}"`,
+            `"${c.student_id || "N/A"}"`,
+            `"${c.is_anonymous ? "Yes" : "No"}"`,
+            `"${date.toLocaleDateString()}"`,
+            `"${date.toLocaleTimeString()}"`,
+          ].join(",")
+        })
+        .join("\n")
 
-    const encodedUri = encodeURI(csvContent)
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
     link.setAttribute("download", `${category.toLowerCase()}_complaints.csv`)
+    link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -307,31 +337,16 @@ function DashboardContent() {
     setCategoryStats(stats)
   }
 
-  const calculateIntensityStats = (complaintsData: Complaint[]) => {
-    const intensityCount: { [key: string]: number } = {}
+  const calculatePriorityStats = (complaintsData: Complaint[]) => {
+    const priorityCount: { [key: string]: number } = {}
 
     complaintsData.forEach((complaint) => {
-      intensityCount[complaint.intensity] = (intensityCount[complaint.intensity] || 0) + 1
+      priorityCount[complaint.priority] = (priorityCount[complaint.priority] || 0) + 1
     })
 
     const total = complaintsData.length
-    return Object.entries(intensityCount).map(([intensity, count]) => ({
-      name: intensity,
-      value: count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-    }))
-  }
-
-  const calculateUrgencyStats = (complaintsData: Complaint[]) => {
-    const urgencyCount: { [key: string]: number } = {}
-
-    complaintsData.forEach((complaint) => {
-      urgencyCount[complaint.urgency] = (urgencyCount[complaint.urgency] || 0) + 1
-    })
-
-    const total = complaintsData.length
-    return Object.entries(urgencyCount).map(([urgency, count]) => ({
-      name: urgency,
+    return Object.entries(priorityCount).map(([priority, count]) => ({
+      name: priority,
       value: count,
       percentage: total > 0 ? Math.round((count / total) * 100) : 0,
     }))
@@ -602,22 +617,36 @@ function DashboardContent() {
                     <Button
                       onClick={() => {
                         const csvContent =
-                          "data:text/csv;charset=utf-8," +
-                          "ID,Category,Title,Details,Intensity,Urgency,Student Name,Student ID,Anonymous,Date\\n" +
+                          '\uFEFF"ID","Category","Title","Details","Priority","Hostel","Room/Department","Student Name","Student ID","Anonymous","Date","Time"\n' +
                           complaints
-                            .map(
-                              (c) =>
-                                `"${c.id}","${c.category}","${c.title}","${c.details}","${c.intensity}","${c.urgency}","${c.student_name || "N/A"}","${c.student_id || "N/A"}","${c.is_anonymous}","${c.created_at}"`,
-                            )
-                            .join("\\n")
+                            .map((c) => {
+                              const date = new Date(c.created_at)
+                              return [
+                                `"${c.id}"`,
+                                `"${c.category}"`,
+                                `"${(c.title || "").replace(/"/g, '""')}"`,
+                                `"${c.details.replace(/"/g, '""')}"`,
+                                `"${c.priority}"`,
+                                `"${c.hostel || "N/A"}"`,
+                                `"${c.room_department || "N/A"}"`,
+                                `"${c.student_name || "N/A"}"`,
+                                `"${c.student_id || "N/A"}"`,
+                                `"${c.is_anonymous ? "Yes" : "No"}"`,
+                                `"${date.toLocaleDateString()}"`,
+                                `"${date.toLocaleTimeString()}"`,
+                              ].join(",")
+                            })
+                            .join("\n")
 
-                        const encodedUri = encodeURI(csvContent)
+                        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
                         const link = document.createElement("a")
-                        link.setAttribute("href", encodedUri)
+                        const url = URL.createObjectURL(blob)
+                        link.setAttribute("href", url)
                         link.setAttribute(
                           "download",
                           `${tableFilter === "all" ? "all" : tableFilter.toLowerCase()}_complaints_page_${currentPage}.csv`,
                         )
+                        link.style.visibility = "hidden"
                         document.body.appendChild(link)
                         link.click()
                         document.body.removeChild(link)
@@ -640,8 +669,8 @@ function DashboardContent() {
                             <TableHead className="w-[100px]">ID</TableHead>
                             <TableHead className="w-[120px]">Category</TableHead>
                             <TableHead className="w-[200px]">Title</TableHead>
-                            <TableHead className="w-[100px]">Intensity</TableHead>
-                            <TableHead className="w-[100px]">Urgency</TableHead>
+                            <TableHead className="w-[100px]">Priority</TableHead>
+                            <TableHead className="w-[120px]">Location</TableHead>
                             <TableHead className="w-[150px]">Student Info</TableHead>
                             <TableHead className="w-[120px]">Date Submitted</TableHead>
                             <TableHead className="min-w-[250px]">Details</TableHead>
@@ -664,30 +693,36 @@ function DashboardContent() {
                               <TableCell>
                                 <Badge
                                   variant={
-                                    complaint.intensity === "Critical"
+                                    complaint.priority === "Critical"
                                       ? "destructive"
-                                      : complaint.intensity === "High"
+                                      : complaint.priority === "High"
                                         ? "default"
                                         : "secondary"
                                   }
                                   className="whitespace-nowrap"
                                 >
-                                  {complaint.intensity}
+                                  {complaint.priority}
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <Badge
-                                  variant={
-                                    complaint.urgency === "Critical"
-                                      ? "destructive"
-                                      : complaint.urgency === "High"
-                                        ? "default"
-                                        : "secondary"
-                                  }
-                                  className="whitespace-nowrap"
-                                >
-                                  {complaint.urgency}
-                                </Badge>
+                                <div className="text-sm">
+                                  {complaint.hostel && (
+                                    <div className="font-medium truncate max-w-[110px]" title={complaint.hostel}>
+                                      {complaint.hostel}
+                                    </div>
+                                  )}
+                                  {complaint.room_department && (
+                                    <div
+                                      className="text-gray-500 text-xs truncate max-w-[110px]"
+                                      title={complaint.room_department}
+                                    >
+                                      {complaint.room_department}
+                                    </div>
+                                  )}
+                                  {!complaint.hostel && !complaint.room_department && (
+                                    <span className="text-gray-400 text-xs">N/A</span>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 {complaint.is_anonymous ? (
@@ -782,11 +817,10 @@ function DashboardContent() {
           <TabsContent value="analytics" className="space-y-8">
             {complaints.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Intensity Pie Chart */}
-                <Card>
+                <Card className="lg:col-span-2">
                   <CardHeader>
-                    <CardTitle>Complaint Intensity Distribution</CardTitle>
-                    <CardDescription>Breakdown of complaint intensity levels as percentage of total</CardDescription>
+                    <CardTitle>Complaint Priority Distribution</CardTitle>
+                    <CardDescription>Breakdown of complaint priority levels as percentage of total</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ChartContainer
@@ -813,7 +847,7 @@ function DashboardContent() {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={calculateIntensityStats(complaints)}
+                            data={calculatePriorityStats(complaints)}
                             cx="50%"
                             cy="50%"
                             labelLine={false}
@@ -822,7 +856,7 @@ function DashboardContent() {
                             fill="#8884d8"
                             dataKey="value"
                           >
-                            {calculateIntensityStats(complaints).map((entry, index) => (
+                            {calculatePriorityStats(complaints).map((entry, index) => (
                               <Cell
                                 key={`cell-${index}`}
                                 fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS]}
@@ -837,62 +871,6 @@ function DashboardContent() {
                   </CardContent>
                 </Card>
 
-                {/* Urgency Pie Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Complaint Urgency Distribution</CardTitle>
-                    <CardDescription>Breakdown of complaint urgency levels as percentage of total</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer
-                      config={{
-                        Low: {
-                          label: "Low",
-                          color: "#10b981",
-                        },
-                        Medium: {
-                          label: "Medium",
-                          color: "#f59e0b",
-                        },
-                        High: {
-                          label: "High",
-                          color: "#f97316",
-                        },
-                        Critical: {
-                          label: "Critical",
-                          color: "#ef4444",
-                        },
-                      }}
-                      className="h-[300px] w-full"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={calculateUrgencyStats(complaints)}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percentage }) => `${name}: ${percentage}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {calculateUrgencyStats(complaints).map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS]}
-                              />
-                            ))}
-                          </Pie>
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-
-                {/* Combined Statistics */}
                 <Card className="lg:col-span-2">
                   <CardHeader>
                     <CardTitle>Priority Matrix</CardTitle>
@@ -904,25 +882,25 @@ function DashboardContent() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
                         <div className="text-2xl font-bold text-red-600">
-                          {complaints.filter((c) => c.intensity === "Critical" && c.urgency === "Critical").length}
+                          {complaints.filter((c) => c.priority === "Critical").length}
                         </div>
-                        <div className="text-sm text-red-700">Critical/Critical</div>
+                        <div className="text-sm text-red-700">Critical Priority</div>
                       </div>
                       <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
                         <div className="text-2xl font-bold text-orange-600">
-                          {complaints.filter((c) => c.intensity === "Critical" || c.urgency === "Critical").length}
+                          {complaints.filter((c) => c.priority === "High").length}
                         </div>
-                        <div className="text-sm text-orange-700">Any Critical</div>
+                        <div className="text-sm text-orange-700">High Priority</div>
                       </div>
                       <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                         <div className="text-2xl font-bold text-yellow-600">
-                          {complaints.filter((c) => c.intensity === "High" || c.urgency === "High").length}
+                          {complaints.filter((c) => c.priority === "Medium").length}
                         </div>
-                        <div className="text-sm text-yellow-700">Any High</div>
+                        <div className="text-sm text-yellow-700">Medium Priority</div>
                       </div>
                       <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                         <div className="text-2xl font-bold text-green-600">
-                          {complaints.filter((c) => c.intensity === "Low" && c.urgency === "Low").length}
+                          {complaints.filter((c) => c.priority === "Low").length}
                         </div>
                         <div className="text-sm text-green-700">Low Priority</div>
                       </div>

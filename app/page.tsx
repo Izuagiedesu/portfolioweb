@@ -8,7 +8,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-8">
-              <h1 className="text-2xl font-bold text-gray-900">Bowen DSS complaints Hub</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Directorate of Student Support Services</h1>
               <nav className="hidden md:flex space-x-6"></nav>
             </div>
             <div className="flex items-center space-x-4">
@@ -31,8 +31,7 @@ export default function Home() {
             </div>
 
             <p className="text-xl text-gray-600 leading-relaxed max-w-lg">
-              Submit complaints about water, electricity, noise, security, academics, facilities, and more. Your
-              feedback helps improve campus life for everyone.
+              Your voice matters. Share your concerns and help us create a better campus environment for all students.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -55,7 +54,7 @@ export default function Home() {
 
         <footer className="mt-32 pt-20 border-t border-gray-200">
           <div className="text-center space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900">Bowen University - Department of Student Services</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Bowen University Complaint System (BUCS)</h3>
             <p className="text-gray-600">Committed to improving campus life through your feedback</p>
             <p className="text-sm text-gray-500"> Designed by Software. </p>
           </div>

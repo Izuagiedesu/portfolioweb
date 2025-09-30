@@ -22,8 +22,9 @@ export default function ComplaintPage() {
     category: "",
     title: "",
     details: "",
-    intensity: "",
-    urgency: "",
+    priority: "Medium",
+    hostel: "",
+    roomDepartment: "",
     studentName: "",
     studentEmail: "",
     studentId: "",
@@ -40,8 +41,8 @@ export default function ComplaintPage() {
     setError(null)
 
     // Validation
-    if (!formData.category || !formData.title || !formData.details) {
-      setError("Please fill in all required fields (Category, Title, and Details)")
+    if (!formData.category || !formData.details) {
+      setError("Please fill in all required fields (Category and Details)")
       setIsSubmitting(false)
       return
     }
@@ -57,10 +58,11 @@ export default function ComplaintPage() {
 
       const complaintData = {
         category: formData.category,
-        title: formData.title,
+        title: formData.title || formData.category, // Use category as title if not provided
         details: formData.details,
-        intensity: formData.intensity,
-        urgency: formData.urgency,
+        priority: formData.priority,
+        hostel: formData.hostel,
+        room_department: formData.roomDepartment,
         student_name: formData.isAnonymous ? null : formData.studentName,
         student_email: formData.isAnonymous ? null : formData.studentEmail,
         student_id: formData.isAnonymous ? null : formData.studentId,
@@ -93,8 +95,9 @@ export default function ComplaintPage() {
         category: "",
         title: "",
         details: "",
-        intensity: "",
-        urgency: "",
+        priority: "Medium",
+        hostel: "",
+        roomDepartment: "",
         studentName: "",
         studentEmail: "",
         studentId: "",
@@ -173,18 +176,44 @@ export default function ComplaintPage() {
                 </Select>
               </div>
 
-              {/* Title */}
-              <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  type="text"
-                  placeholder="Brief description of your complaint"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="hostel">Hostel/College</Label>
+                  <Input
+                    id="hostel"
+                    type="text"
+                    placeholder=""
+                    value={formData.hostel}
+                    onChange={(e) => setFormData({ ...formData, hostel: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="roomDepartment">Room Number/Department</Label>
+                  <Input
+                    id="roomDepartment"
+                    type="text"
+                    placeholder="e.g., Room 60, CSC Dept"
+                    value={formData.roomDepartment}
+                    onChange={(e) => setFormData({ ...formData, roomDepartment: e.target.value })}
+                  />
+                </div>
               </div>
+
+              {/* Title - Optional for most categories */}
+              {formData.category === "Others" && (
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    type="text"
+                    placeholder="Brief description of your complaint"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    required={formData.category === "Others"}
+                  />
+                </div>
+              )}
 
               {/* Details */}
               <div className="space-y-2">
@@ -199,43 +228,22 @@ export default function ComplaintPage() {
                 />
               </div>
 
-              {/* Intensity and Urgency selection fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="intensity">Intensity Level *</Label>
-                  <Select
-                    value={formData.intensity}
-                    onValueChange={(value) => setFormData({ ...formData, intensity: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select intensity" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Low">Low</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="urgency">Urgency Level *</Label>
-                  <Select
-                    value={formData.urgency}
-                    onValueChange={(value) => setFormData({ ...formData, urgency: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select urgency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Low">Low</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="priority">Priority Level *</Label>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low - Minor inconveniences</SelectItem>
+                    <SelectItem value="Medium">Medium - Important but can wait</SelectItem>
+                    <SelectItem value="High">High - Urgent but not life-threatening</SelectItem>
+                    <SelectItem value="Critical">Critical - Immediate attention required</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Anonymous Checkbox */}
