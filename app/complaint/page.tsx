@@ -43,8 +43,8 @@ export default function ComplaintPage() {
     title: "",
     details: "",
     priority: "Medium",
-    hostel: "",
-    roomDepartment: "",
+    hostelCollege: "",
+    department: "",
     studentName: "",
     studentEmail: "",
     studentId: "",
@@ -81,8 +81,8 @@ export default function ComplaintPage() {
         title: formData.title || formData.category, // Use category as title if not provided
         details: formData.details,
         priority: formData.priority,
-        hostel: formData.hostel,
-        room_department: formData.roomDepartment,
+        hostel: formData.hostelCollege,
+        room_department: formData.department,
         student_name: formData.isAnonymous ? null : formData.studentName,
         student_email: formData.isAnonymous ? null : formData.studentEmail,
         student_id: formData.isAnonymous ? null : formData.studentId,
@@ -116,8 +116,8 @@ export default function ComplaintPage() {
         title: "",
         details: "",
         priority: "Medium",
-        hostel: "",
-        roomDepartment: "",
+        hostelCollege: "",
+        department: "",
         studentName: "",
         studentEmail: "",
         studentId: "",
@@ -203,8 +203,8 @@ export default function ComplaintPage() {
                     id="hostel"
                     type="text"
                     placeholder=""
-                    value={formData.hostel}
-                    onChange={(e) => setFormData({ ...formData, hostel: e.target.value })}
+                    value={formData.hostelCollege}
+                    onChange={(e) => setFormData({ ...formData, hostelCollege: e.target.value })}
                   />
                 </div>
 
@@ -214,8 +214,8 @@ export default function ComplaintPage() {
                     id="roomDepartment"
                     type="text"
                     placeholder="e.g., Room 60, CSC Dept"
-                    value={formData.roomDepartment}
-                    onChange={(e) => setFormData({ ...formData, roomDepartment: e.target.value })}
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                   />
                 </div>
               </div>

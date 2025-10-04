@@ -60,15 +60,15 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-6">
-          <Link href="/" className="inline-flex items-center text-blue-600 hover:text-blue-800">
+          <Link href="/" className="inline-flex items-center text-primary hover:text-primary/80">
             ← Back to Home
           </Link>
         </div>
 
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-2xl text-center">Admin Login</CardTitle>
             <CardDescription className="text-center">Enter the admin password to access the dashboard</CardDescription>
@@ -84,16 +84,17 @@ export default function AdminLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="bg-background border-border"
                 />
               </div>
 
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="p-3 bg-destructive/10 border border-destructive/50 rounded-md">
+                  <p className="text-sm text-destructive">{error}</p>
                 </div>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={isLoading}>
                 {isLoading ? "Verifying..." : "Access Dashboard"}
               </Button>
             </form>

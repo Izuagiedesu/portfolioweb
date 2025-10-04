@@ -7,28 +7,23 @@ import { getAdminSession, clearAdminSession } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts"
+import { AlertCircle, Download, RefreshCw, LogOut, FileText, AlertTriangle, Eye } from "lucide-react"
 
 interface Complaint {
   id: string
   category: string
   title: string
   details: string
+  intensity: string
+  urgency: string
   priority: string
-  hostel?: string
-  room_department?: string
+  location?: string
   student_name: string | null
   student_email: string | null
   student_id: string | null
@@ -42,23 +37,42 @@ interface CategoryStats {
   percentage: number
 }
 
-function ComplaintDetailsModal({ complaint }: { complaint: Complaint }) {
+function ComplaintDetailsModal({ complaint, onOpen }: { complaint: Complaint; onOpen?: () => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const parseLocation = (location: string | undefined) => {
+    if (!location) return { hostel: "N/A", room: "N/A" }
+    const parts = location.split(" ")
+    return {
+      hostel: parts.slice(0, -1).join(" ") || "N/A",
+      room: parts[parts.length - 1] || "N/A",
+    }
+  }
+
+  const locationData = parseLocation(complaint.location)
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-auto p-1 text-left justify-start">
-          <div className="max-w-[250px] text-sm truncate">
-            {complaint.details.length > 100 ? `${complaint.details.substring(0, 100)}...` : complaint.details}
-          </div>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          setIsOpen(true)
+          onOpen?.()
+        }}
+        className="text-cyan-400 hover:text-cyan-300 hover:bg-gray-700"
+      >
+        <Eye className="w-4 h-4" />
+      </Button>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-gray-900 text-white border-cyan-500">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Badge variant="secondary">{complaint.category}</Badge>
+          <DialogTitle className="flex items-center gap-3 text-2xl">
+            <Badge variant="secondary" className="bg-gray-800 text-white">
+              {complaint.category}
+            </Badge>
             {complaint.title}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-gray-400 text-base">
             Complaint ID: {complaint.id} • Submitted:{" "}
             {new Date(complaint.created_at).toLocaleDateString("en-US", {
               year: "numeric",
@@ -69,34 +83,28 @@ function ComplaintDetailsModal({ complaint }: { complaint: Complaint }) {
             })}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          {(complaint.hostel || complaint.room_department) && (
-            <div>
-              <h4 className="font-semibold text-sm text-gray-600 mb-1">Location</h4>
-              <div className="text-sm space-y-1">
-                {complaint.hostel && (
-                  <div>
-                    <strong>Hostel/College:</strong> {complaint.hostel}
-                  </div>
-                )}
-                {complaint.room_department && (
-                  <div>
-                    <strong>Room/Department:</strong> {complaint.room_department}
-                  </div>
-                )}
+        <div className="space-y-6 mt-4">
+          <div>
+            <h4 className="font-semibold text-gray-400 mb-3">Location</h4>
+            <div className="space-y-2 text-white">
+              <div>
+                <span className="font-bold">Hostel/College:</span> {locationData.hostel}
+              </div>
+              <div>
+                <span className="font-bold">Room/Department:</span> {locationData.room}
               </div>
             </div>
-          )}
+          </div>
 
           <div>
-            <h4 className="font-semibold text-sm text-gray-600 mb-1">Priority Level</h4>
+            <h4 className="font-semibold text-gray-400 mb-3">Priority Level</h4>
             <Badge
-              variant={
-                complaint.priority === "Critical"
-                  ? "destructive"
-                  : complaint.priority === "High"
-                    ? "default"
-                    : "secondary"
+              className={
+                complaint.priority === "High"
+                  ? "bg-cyan-500 text-black hover:bg-cyan-600"
+                  : complaint.priority === "Critical"
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-gray-600 text-white hover:bg-gray-700"
               }
             >
               {complaint.priority}
@@ -104,20 +112,22 @@ function ComplaintDetailsModal({ complaint }: { complaint: Complaint }) {
           </div>
 
           <div>
-            <h4 className="font-semibold text-sm text-gray-600 mb-1">Student Information</h4>
+            <h4 className="font-semibold text-gray-400 mb-3">Student Information</h4>
             {complaint.is_anonymous ? (
-              <Badge variant="outline">Anonymous Submission</Badge>
+              <Badge variant="outline" className="border-gray-600 text-white">
+                Anonymous Submission
+              </Badge>
             ) : (
-              <div className="text-sm space-y-1">
+              <div className="text-white space-y-2">
                 <div>
-                  <strong>Name:</strong> {complaint.student_name}
+                  <span className="font-bold">Name:</span> {complaint.student_name}
                 </div>
                 <div>
-                  <strong>Student ID:</strong> {complaint.student_id}
+                  <span className="font-bold">Student ID:</span> {complaint.student_id}
                 </div>
                 {complaint.student_email && (
                   <div>
-                    <strong>Email:</strong> {complaint.student_email}
+                    <span className="font-bold">Email:</span> {complaint.student_email}
                   </div>
                 )}
               </div>
@@ -125,9 +135,9 @@ function ComplaintDetailsModal({ complaint }: { complaint: Complaint }) {
           </div>
 
           <div>
-            <h4 className="font-semibold text-sm text-gray-600 mb-2">Full Complaint Details</h4>
-            <div className="bg-gray-50 p-4 rounded-lg border">
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{complaint.details}</p>
+            <h4 className="font-semibold text-gray-400 mb-3">Full Complaint Details</h4>
+            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+              <p className="text-white leading-relaxed whitespace-pre-wrap">{complaint.details}</p>
             </div>
           </div>
         </div>
@@ -139,20 +149,14 @@ function ComplaintDetailsModal({ complaint }: { complaint: Complaint }) {
 function DashboardContent() {
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [tableFilter, setTableFilter] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [adminSession, setAdminSession] = useState<any>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
-  const [pageSize] = useState(50) // Fixed page size
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const router = useRouter()
 
   const handleExportAll = () => {
     const csvContent =
-      '\uFEFF"ID","Category","Title","Details","Priority","Hostel","Room/Department","Student Name","Student ID","Anonymous","Date","Time"\n' +
+      '\uFEFF"ID","Category","Title","Details","Intensity","Urgency","Location","Student Name","Student ID","Anonymous","Date","Time"\n' +
       complaints
         .map((c) => {
           const date = new Date(c.created_at)
@@ -161,9 +165,9 @@ function DashboardContent() {
             `"${c.category}"`,
             `"${(c.title || "").replace(/"/g, '""')}"`,
             `"${c.details.replace(/"/g, '""')}"`,
-            `"${c.priority}"`,
-            `"${c.hostel || "N/A"}"`,
-            `"${c.room_department || "N/A"}"`,
+            `"${c.intensity}"`,
+            `"${c.urgency}"`,
+            `"${c.location || "N/A"}"`,
             `"${c.student_name || "N/A"}"`,
             `"${c.student_id || "N/A"}"`,
             `"${c.is_anonymous ? "Yes" : "No"}"`,
@@ -184,11 +188,11 @@ function DashboardContent() {
     document.body.removeChild(link)
   }
 
-  const handleExportCategory = (category: string) => {
-    const filteredComplaints = complaints.filter((c) => c.category === category)
+  const handleExportNoiseDisturbance = () => {
+    const noiseComplaints = complaints.filter((c) => c.category === "Noise Disturbance")
     const csvContent =
-      '\uFEFF"ID","Category","Title","Details","Priority","Hostel","Room/Department","Student Name","Student ID","Anonymous","Date","Time"\n' +
-      filteredComplaints
+      '\uFEFF"ID","Category","Title","Details","Intensity","Urgency","Location","Student Name","Student ID","Anonymous","Date","Time"\n' +
+      noiseComplaints
         .map((c) => {
           const date = new Date(c.created_at)
           return [
@@ -196,9 +200,9 @@ function DashboardContent() {
             `"${c.category}"`,
             `"${(c.title || "").replace(/"/g, '""')}"`,
             `"${c.details.replace(/"/g, '""')}"`,
-            `"${c.priority}"`,
-            `"${c.hostel || "N/A"}"`,
-            `"${c.room_department || "N/A"}"`,
+            `"${c.intensity}"`,
+            `"${c.urgency}"`,
+            `"${c.location || "N/A"}"`,
             `"${c.student_name || "N/A"}"`,
             `"${c.student_id || "N/A"}"`,
             `"${c.is_anonymous ? "Yes" : "No"}"`,
@@ -212,36 +216,47 @@ function DashboardContent() {
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
     link.setAttribute("href", url)
-    link.setAttribute("download", `${category.toLowerCase()}_complaints.csv`)
+    link.setAttribute("download", "noise_disturbance_complaints.csv")
     link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  const handleViewTopComplaintDetails = () => {
-    const topCategory = getTopComplaint()?.category
-    if (topCategory) {
-      setTableFilter(topCategory)
-      // Switch to table tab to show filtered results
-      const tableTab = document.querySelector('[data-value="table"]') as HTMLElement
-      if (tableTab) {
-        tableTab.click()
-      }
-    }
+  const handleExportCurrentPage = () => {
+    const filteredComplaints = getFilteredComplaints()
+    const csvContent =
+      '\uFEFF"ID","Category","Title","Details","Priority","Location","Student Info","Date Submitted"\n' +
+      filteredComplaints
+        .map((c) => {
+          const studentInfo = c.is_anonymous ? "Anonymous" : `${c.student_name || "N/A"} ${c.student_id || ""}`
+          return [
+            `"${c.id.slice(0, 8)}"`,
+            `"${c.category}"`,
+            `"${(c.title || "").replace(/"/g, '""')}"`,
+            `"${c.details.replace(/"/g, '""')}"`,
+            `"${c.priority}"`,
+            `"${c.location || "N/A"}"`,
+            `"${studentInfo}"`,
+            `"${formatDate(c.created_at)}"`,
+          ].join(",")
+        })
+        .join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", "complaints_current_page.csv")
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
-  const fetchComplaints = async (page = 1, category = "all") => {
+  const fetchComplaints = async () => {
     try {
-      console.log(`[v0] Fetching complaints from API - page ${page}, category: ${category}`)
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: pageSize.toString(),
-        ...(category !== "all" && { category }),
-      })
-
-      const response = await fetch(`/api/complaints?${params}`, {
+      const response = await fetch("/api/complaints?limit=1000", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -253,70 +268,25 @@ function DashboardContent() {
       }
 
       const data = await response.json()
-      console.log("[v0] Fetched complaints:", data)
-
       setComplaints(data.complaints || [])
-      setCurrentPage(data.page || 1)
-      setTotalPages(data.totalPages || 1)
-      setTotalCount(data.totalCount || 0)
-
-      // Only calculate category stats from all complaints (not paginated)
-      if (category === "all" && page === 1) {
-        await fetchCategoryStats()
-      }
+      calculateCategoryStats(data.complaints || [])
       setError(null)
     } catch (error: any) {
-      console.error("[v0] Failed to fetch complaints:", error)
       setError("Failed to load complaints from database. Please try refreshing the page.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const fetchCategoryStats = async () => {
-    try {
-      const response = await fetch("/api/complaints?limit=1000", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        calculateCategoryStats(data.complaints || [])
-      }
-    } catch (error) {
-      console.error("[v0] Failed to fetch category stats:", error)
-    }
-  }
-
   useEffect(() => {
-    console.log("[v0] Dashboard content mounted on client")
     const session = getAdminSession()
-    console.log("[v0] Client-side admin session:", session)
 
     if (session) {
-      setAdminSession(session)
-      fetchComplaints(1, tableFilter)
-
-      const interval = setInterval(() => {
-        console.log("[v0] Auto-refreshing complaints data...")
-        fetchComplaints(currentPage, tableFilter)
-      }, 60000) // 60 seconds instead of 30
-
-      return () => clearInterval(interval)
+      fetchComplaints()
     } else {
       setIsLoading(false)
     }
   }, [])
-
-  useEffect(() => {
-    if (adminSession) {
-      setCurrentPage(1)
-      fetchComplaints(1, tableFilter)
-    }
-  }, [tableFilter])
 
   const calculateCategoryStats = (complaintsData: Complaint[]) => {
     const categoryCount: { [key: string]: number } = {}
@@ -338,25 +308,39 @@ function DashboardContent() {
   }
 
   const calculatePriorityStats = (complaintsData: Complaint[]) => {
-    const priorityCount: { [key: string]: number } = {}
+    const priorityCount: { [key: string]: number } = { Critical: 0, High: 0, Medium: 0, Low: 0 }
 
     complaintsData.forEach((complaint) => {
       priorityCount[complaint.priority] = (priorityCount[complaint.priority] || 0) + 1
     })
 
     const total = complaintsData.length
-    return Object.entries(priorityCount).map(([priority, count]) => ({
-      name: priority,
-      value: count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-    }))
+    return Object.entries(priorityCount)
+      .filter(([_, count]) => count > 0)
+      .map(([priority, count]) => ({
+        name: priority,
+        value: count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      }))
+  }
+
+  const getFilteredComplaints = () => {
+    if (selectedCategory === "all") {
+      return complaints
+    }
+    return complaints.filter((c) => c.category === selectedCategory)
+  }
+
+  const getUniqueCategories = () => {
+    const categories = Array.from(new Set(complaints.map((c) => c.category)))
+    return categories.sort()
   }
 
   const CHART_COLORS = {
-    Low: "#10b981", // green
-    Medium: "#f59e0b", // yellow
-    High: "#f97316", // orange
-    Critical: "#ef4444", // red
+    Critical: "#dc2626",
+    High: "#f97316",
+    Medium: "#fbbf24",
+    Low: "#22c55e",
   }
 
   const handleLogout = () => {
@@ -366,7 +350,7 @@ function DashboardContent() {
 
   const handleRefresh = () => {
     setIsLoading(true)
-    fetchComplaints(currentPage, tableFilter)
+    fetchComplaints()
   }
 
   const formatDate = (dateString: string) => {
@@ -379,20 +363,19 @@ function DashboardContent() {
     })
   }
 
-  const getTopComplaint = () => {
-    return categoryStats.length > 0 ? categoryStats[0] : null
-  }
+  const topCategory = categoryStats[0]
+  const criticalCount = complaints.filter((c) => c.priority === "Critical").length
+  const highCount = complaints.filter((c) => c.priority === "High").length
+  const mediumCount = complaints.filter((c) => c.priority === "Medium").length
+  const lowCount = complaints.filter((c) => c.priority === "Low").length
 
-  const filteredComplaints = selectedCategory ? complaints.filter((c) => c.category === selectedCategory) : complaints
-
-  const tableFilteredComplaints =
-    tableFilter === "all" ? complaints : complaints.filter((c) => c.category === tableFilter)
+  const filteredComplaints = getFilteredComplaints()
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
@@ -400,34 +383,33 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">DSS Admin Dashboard</h1>
-              <p className="text-gray-600">Welcome back, Admin</p>
-            </div>
-            <div className="flex gap-3">
-              <Button onClick={handleRefresh} variant="outline" size="sm">
-                🔄 Refresh Data
-              </Button>
-              <Button onClick={handleLogout} variant="outline" size="sm">
-                ← Logout
-              </Button>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-8 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">DSS Admin Dashboard</h1>
+            <p className="text-sm text-gray-600">Welcome back, Admin</p>
+          </div>
+          <div className="flex gap-3">
+            <Button onClick={handleRefresh} variant="default" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Refresh Data
+            </Button>
+            <Button onClick={handleLogout} variant="default" className="gap-2">
+              <LogOut className="w-4 h-4" />
+              Logout
+            </Button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+      <main className="p-8">
         {error ? (
           <Card className="mb-8 border-red-200 bg-red-50">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <span className="text-red-600">⚠</span>
-                <CardTitle className="text-red-800">Database Connection Error</CardTitle>
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <CardTitle className="text-red-900">Database Connection Error</CardTitle>
               </div>
               <CardDescription className="text-red-700">{error}</CardDescription>
             </CardHeader>
@@ -437,491 +419,332 @@ function DashboardContent() {
               </Button>
             </CardContent>
           </Card>
-        ) : (
-          <Card className="mb-8 border-green-200 bg-green-50">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <span className="text-green-600">✓</span>
-                <CardTitle className="text-green-800">Connected to Supabase Database</CardTitle>
-              </div>
-              <CardDescription className="text-green-700">
-                Admin dashboard is successfully connected to the live database. Showing real complaint data!
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
+        ) : null}
 
-        {complaints.length === 0 ? (
-          <Card className="mb-8 border-blue-200 bg-blue-50">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600">ℹ</span>
-                <CardTitle className="text-blue-800">No Complaints Yet</CardTitle>
-              </div>
-              <CardDescription className="text-blue-700">
-                No complaints have been submitted yet. The dashboard will populate as students submit complaints through
-                the form.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          <>
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Complaints</CardTitle>
-                  <span className="text-muted-foreground">📄</span>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="complaints">Complaints Table</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-gray-800 text-white">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    <CardTitle>Total Complaints</CardTitle>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{totalCount}</div>
-                  <p className="text-xs text-muted-foreground">All time submissions</p>
+                  <div className="text-4xl font-bold">{complaints.length}</div>
+                  <p className="text-sm text-gray-300 mt-1">All time submissions</p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Top Issue</CardTitle>
-                  <span className="text-muted-foreground">📈</span>
+              <Card className="bg-gray-800 text-white">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    <CardTitle>Top Issue</CardTitle>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{getTopComplaint()?.category || "N/A"}</div>
-                  <p className="text-xs text-muted-foreground">{getTopComplaint()?.count || 0} complaints</p>
+                  {topCategory ? (
+                    <>
+                      <div className="text-3xl font-bold">{topCategory.category}</div>
+                      <p className="text-sm text-gray-300 mt-1">{topCategory.count} complaints</p>
+                    </>
+                  ) : (
+                    <div className="text-gray-400">No data</div>
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Export Data */}
-            <Card className="mb-8">
+            <Card className="bg-gray-800 text-white">
               <CardHeader>
                 <CardTitle>Export Data</CardTitle>
-                <CardDescription>Download complaint data for analysis and reporting</CardDescription>
+                <CardDescription className="text-gray-300">
+                  Download complaint data for analysis and reporting
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-6">
-                  <Button onClick={handleExportAll} variant="outline">
-                    ⬇ Export All Complaints (CSV)
-                  </Button>
-                  {getTopComplaint() && (
-                    <Button onClick={() => handleExportCategory(getTopComplaint()?.category || "")} variant="outline">
-                      📈 Export {getTopComplaint()?.category} Complaints
-                    </Button>
-                  )}
-                </div>
+              <CardContent className="flex gap-4">
+                <Button onClick={handleExportAll} variant="secondary" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export All Complaints (CSV)
+                </Button>
+                <Button
+                  onClick={handleExportNoiseDisturbance}
+                  variant="outline"
+                  className="gap-2 bg-transparent text-white border-gray-600 hover:bg-gray-700"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Export Noise Disturbance Complaints
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Top Complaint of the Week */}
-            {getTopComplaint() && (
-              <Card className="mb-8 border-orange-200 bg-orange-50">
+            {topCategory && (
+              <Card className="bg-orange-50 border-orange-200">
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <span className="text-orange-600">⚠</span>
-                    <CardTitle className="text-orange-800">Top Complaint Category</CardTitle>
+                    <AlertTriangle className="w-5 h-5 text-orange-600" />
+                    <CardTitle className="text-orange-900">Top Complaint Category</CardTitle>
                   </div>
                   <CardDescription className="text-orange-700">
                     This category needs immediate attention from the DSS team
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-2xl font-bold text-orange-800">{getTopComplaint()?.category}</h3>
-                      <p className="text-orange-600">
-                        {getTopComplaint()?.count} complaints ({getTopComplaint()?.percentage}% of total)
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-
-        <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="table">Complaints Table</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-8">
-            {/* Category Statistics */}
-            {categoryStats.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Complaint Categories</CardTitle>
-                  <CardDescription>Distribution of complaints by category</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {categoryStats.map((stat) => (
-                      <div key={stat.category} className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                          <span className="font-medium">{stat.category}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="w-32 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-500 h-2 rounded-full"
-                              style={{ width: `${stat.percentage}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm text-gray-600 w-16 text-right">
-                            {stat.count} ({stat.percentage}%)
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Complaint Categories</CardTitle>
-                  <CardDescription>No categories available yet</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-500">Categories will appear here once complaints are submitted.</p>
+                  <div className="text-3xl font-bold text-orange-900">{topCategory.category}</div>
+                  <p className="text-orange-700 mt-1">
+                    {topCategory.count} complaints ({topCategory.percentage}% of total)
+                  </p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
 
-          <TabsContent value="table" className="space-y-8">
-            <Card>
+          <TabsContent value="complaints">
+            <Card className="bg-gray-800 text-white">
               <CardHeader>
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Complaints Table</CardTitle>
-                    <CardDescription>
-                      Showing {complaints.length} of {totalCount} complaints (Page {currentPage} of {totalPages})
+                    <CardDescription className="text-gray-300">
+                      Showing {filteredComplaints.length} of {complaints.length} complaints (Page 1 of 1)
                     </CardDescription>
                   </div>
-                  <div className="flex gap-3 items-center">
-                    <Select value={tableFilter} onValueChange={setTableFilter}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Filter by category" />
+                  <div className="flex gap-3">
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="w-[180px] bg-gray-700 border-gray-600 text-white">
+                        <SelectValue placeholder="All Categories" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
-                        {categoryStats.map((stat) => (
-                          <SelectItem key={stat.category} value={stat.category}>
-                            {stat.category} ({stat.count})
+                        {getUniqueCategories().map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      onClick={() => {
-                        const csvContent =
-                          '\uFEFF"ID","Category","Title","Details","Priority","Hostel","Room/Department","Student Name","Student ID","Anonymous","Date","Time"\n' +
-                          complaints
-                            .map((c) => {
-                              const date = new Date(c.created_at)
-                              return [
-                                `"${c.id}"`,
-                                `"${c.category}"`,
-                                `"${(c.title || "").replace(/"/g, '""')}"`,
-                                `"${c.details.replace(/"/g, '""')}"`,
-                                `"${c.priority}"`,
-                                `"${c.hostel || "N/A"}"`,
-                                `"${c.room_department || "N/A"}"`,
-                                `"${c.student_name || "N/A"}"`,
-                                `"${c.student_id || "N/A"}"`,
-                                `"${c.is_anonymous ? "Yes" : "No"}"`,
-                                `"${date.toLocaleDateString()}"`,
-                                `"${date.toLocaleTimeString()}"`,
-                              ].join(",")
-                            })
-                            .join("\n")
-
-                        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-                        const link = document.createElement("a")
-                        const url = URL.createObjectURL(blob)
-                        link.setAttribute("href", url)
-                        link.setAttribute(
-                          "download",
-                          `${tableFilter === "all" ? "all" : tableFilter.toLowerCase()}_complaints_page_${currentPage}.csv`,
-                        )
-                        link.style.visibility = "hidden"
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      ⬇ Export Current Page
+                    <Button onClick={handleExportCurrentPage} variant="secondary" className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Export Current Page
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                {complaints.length > 0 ? (
-                  <>
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[100px]">ID</TableHead>
-                            <TableHead className="w-[120px]">Category</TableHead>
-                            <TableHead className="w-[200px]">Title</TableHead>
-                            <TableHead className="w-[100px]">Priority</TableHead>
-                            <TableHead className="w-[120px]">Location</TableHead>
-                            <TableHead className="w-[150px]">Student Info</TableHead>
-                            <TableHead className="w-[120px]">Date Submitted</TableHead>
-                            <TableHead className="min-w-[250px]">Details</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {complaints.map((complaint) => (
-                            <TableRow key={complaint.id}>
-                              <TableCell className="font-mono text-xs">{complaint.id.slice(0, 8)}...</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary" className="whitespace-nowrap">
-                                  {complaint.category}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                <div className="max-w-[200px] truncate" title={complaint.title}>
-                                  {complaint.title}
+                <Table className="table-fixed w-full">
+                  <TableHeader>
+                    <TableRow className="border-gray-700 hover:bg-gray-700">
+                      <TableHead className="text-gray-300 w-20">ID</TableHead>
+                      <TableHead className="text-gray-300 w-32">Category</TableHead>
+                      <TableHead className="text-gray-300 w-32">Title</TableHead>
+                      <TableHead className="text-gray-300 w-24">Priority</TableHead>
+                      <TableHead className="text-gray-300 w-28">Location</TableHead>
+                      <TableHead className="text-gray-300 w-28">Student Info</TableHead>
+                      <TableHead className="text-gray-300 w-36">Date Submitted</TableHead>
+                      <TableHead className="text-gray-300">Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredComplaints.map((complaint) => {
+                      return (
+                        <TableRow key={complaint.id} className="border-gray-700 hover:bg-gray-700 cursor-pointer">
+                          <TableCell className="font-mono text-xs text-gray-300 truncate">
+                            {complaint.id.slice(0, 8)}...
+                          </TableCell>
+                          <TableCell className="text-gray-200 truncate">{complaint.category}</TableCell>
+                          <TableCell className="text-gray-200 truncate">{complaint.title}</TableCell>
+                          <TableCell>
+                            <Badge
+                              className={
+                                complaint.priority === "High"
+                                  ? "bg-cyan-500 text-black hover:bg-cyan-600"
+                                  : "bg-gray-600 text-white hover:bg-gray-700"
+                              }
+                            >
+                              {complaint.priority}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {complaint.location ? (
+                              <div className="truncate">
+                                <div className="font-medium truncate">{complaint.location.split(" ")[0]}</div>
+                                <div className="text-xs text-gray-400 truncate">
+                                  {complaint.location.split(" ").slice(1).join(" ")}
                                 </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    complaint.priority === "Critical"
-                                      ? "destructive"
-                                      : complaint.priority === "High"
-                                        ? "default"
-                                        : "secondary"
-                                  }
-                                  className="whitespace-nowrap"
-                                >
-                                  {complaint.priority}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  {complaint.hostel && (
-                                    <div className="font-medium truncate max-w-[110px]" title={complaint.hostel}>
-                                      {complaint.hostel}
-                                    </div>
-                                  )}
-                                  {complaint.room_department && (
-                                    <div
-                                      className="text-gray-500 text-xs truncate max-w-[110px]"
-                                      title={complaint.room_department}
-                                    >
-                                      {complaint.room_department}
-                                    </div>
-                                  )}
-                                  {!complaint.hostel && !complaint.room_department && (
-                                    <span className="text-gray-400 text-xs">N/A</span>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {complaint.is_anonymous ? (
-                                  <Badge variant="outline" className="whitespace-nowrap">
-                                    Anonymous
-                                  </Badge>
-                                ) : (
-                                  <div className="text-sm">
-                                    <div
-                                      className="font-medium truncate max-w-[140px]"
-                                      title={complaint.student_name || ""}
-                                    >
-                                      {complaint.student_name}
-                                    </div>
-                                    <div
-                                      className="text-gray-500 text-xs truncate max-w-[140px]"
-                                      title={complaint.student_id || ""}
-                                    >
-                                      {complaint.student_id}
-                                    </div>
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-sm text-gray-500 whitespace-nowrap">
-                                {formatDate(complaint.created_at)}
-                              </TableCell>
-                              <TableCell>
-                                <ComplaintDetailsModal complaint={complaint} />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-6">
-                        <div className="text-sm text-gray-500">
-                          Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalCount)}{" "}
-                          of {totalCount} complaints
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => fetchComplaints(currentPage - 1, tableFilter)}
-                            disabled={currentPage <= 1}
-                          >
-                            ← Previous
-                          </Button>
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                              const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
-                              return (
-                                <Button
-                                  key={pageNum}
-                                  variant={pageNum === currentPage ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => fetchComplaints(pageNum, tableFilter)}
-                                  className="w-8 h-8 p-0"
-                                >
-                                  {pageNum}
-                                </Button>
-                              )
-                            })}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => fetchComplaints(currentPage + 1, tableFilter)}
-                            disabled={currentPage >= totalPages}
-                          >
-                            Next →
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">
-                      {tableFilter === "all"
-                        ? "No complaints to display."
-                        : `No complaints found for category: ${tableFilter}`}
-                    </p>
-                  </div>
-                )}
+                              </div>
+                            ) : (
+                              "N/A"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            {complaint.is_anonymous ? (
+                              "Anonymous"
+                            ) : (
+                              <div className="truncate">
+                                <div className="font-medium truncate">{complaint.student_name}</div>
+                                <div className="text-xs text-gray-400 truncate">{complaint.student_id}</div>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-gray-400 text-sm">{formatDate(complaint.created_at)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm text-gray-200 truncate flex-1">{complaint.details}</div>
+                              <ComplaintDetailsModal complaint={complaint} />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-8">
-            {complaints.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Complaint Priority Distribution</CardTitle>
-                    <CardDescription>Breakdown of complaint priority levels as percentage of total</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer
-                      config={{
-                        Low: {
-                          label: "Low",
-                          color: "#10b981",
-                        },
-                        Medium: {
-                          label: "Medium",
-                          color: "#f59e0b",
-                        },
-                        High: {
-                          label: "High",
-                          color: "#f97316",
-                        },
-                        Critical: {
-                          label: "Critical",
-                          color: "#ef4444",
-                        },
-                      }}
-                      className="h-[300px] w-full"
-                    >
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={calculatePriorityStats(complaints)}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percentage }) => `${name}: ${percentage}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
-                            dataKey="value"
-                          >
-                            {calculatePriorityStats(complaints).map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS]}
-                              />
-                            ))}
-                          </Pie>
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
+          <TabsContent value="analytics" className="space-y-6">
+            <Card className="bg-gray-800 text-white">
+              <CardHeader>
+                <CardTitle>Complaint Priority Distribution</CardTitle>
+                <CardDescription className="text-gray-300">
+                  Breakdown of complaint priority levels as percentage of total
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{
+                    Critical: { label: "Critical Priority", color: "#dc2626" },
+                    High: { label: "High Priority", color: "#f97316" },
+                    Medium: { label: "Medium Priority", color: "#fbbf24" },
+                    Low: { label: "Low Priority", color: "#22c55e" },
+                  }}
+                  className="h-[400px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={calculatePriorityStats(complaints)}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percentage }) => `${name}: ${percentage}%`}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {calculatePriorityStats(complaints).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[entry.name as keyof typeof CHART_COLORS]} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </CardContent>
+            </Card>
 
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Priority Matrix</CardTitle>
-                    <CardDescription>
-                      Critical and high priority complaints requiring immediate attention
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                        <div className="text-2xl font-bold text-red-600">
-                          {complaints.filter((c) => c.priority === "Critical").length}
-                        </div>
-                        <div className="text-sm text-red-700">Critical Priority</div>
-                      </div>
-                      <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-                        <div className="text-2xl font-bold text-orange-600">
-                          {complaints.filter((c) => c.priority === "High").length}
-                        </div>
-                        <div className="text-sm text-orange-700">High Priority</div>
-                      </div>
-                      <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <div className="text-2xl font-bold text-yellow-600">
-                          {complaints.filter((c) => c.priority === "Medium").length}
-                        </div>
-                        <div className="text-sm text-yellow-700">Medium Priority</div>
-                      </div>
-                      <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                        <div className="text-2xl font-bold text-green-600">
-                          {complaints.filter((c) => c.priority === "Low").length}
-                        </div>
-                        <div className="text-sm text-green-700">Low Priority</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <Card>
+            <Card className="bg-gray-800 text-white">
+              <CardHeader>
+                <CardTitle>Priority Matrix</CardTitle>
+                <CardDescription className="text-gray-300">
+                  Critical and high priority complaints requiring immediate attention
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card className="bg-red-50 border-red-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-red-900 text-5xl font-bold">{criticalCount}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-red-700 font-semibold">Critical Priority</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-orange-50 border-orange-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-orange-900 text-5xl font-bold">{highCount}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-orange-700 font-semibold">High Priority</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-yellow-50 border-yellow-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-yellow-900 text-5xl font-bold">{mediumCount}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-yellow-700 font-semibold">Medium Priority</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-green-50 border-green-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-green-900 text-5xl font-bold">{lowCount}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-green-700 font-semibold">Low Priority</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gray-800 text-white">
+              <CardHeader>
+                <CardTitle>Export Data</CardTitle>
+                <CardDescription className="text-gray-300">
+                  Download complaint data for analysis and reporting
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex gap-4">
+                <Button onClick={handleExportAll} variant="secondary" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export All Complaints (CSV)
+                </Button>
+                <Button
+                  onClick={handleExportNoiseDisturbance}
+                  variant="outline"
+                  className="gap-2 bg-transparent text-white border-gray-600 hover:bg-gray-700"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Export Noise Disturbance Complaints
+                </Button>
+              </CardContent>
+            </Card>
+
+            {topCategory && (
+              <Card className="bg-orange-50 border-orange-200">
                 <CardHeader>
-                  <CardTitle>Analytics</CardTitle>
-                  <CardDescription>No data available for analysis yet</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-orange-600" />
+                    <CardTitle className="text-orange-900">Top Complaint Category</CardTitle>
+                  </div>
+                  <CardDescription className="text-orange-700">
+                    This category needs immediate attention from the DSS team
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-500">Analytics will appear here once complaints are submitted.</p>
+                  <div className="text-3xl font-bold text-orange-900">{topCategory.category}</div>
+                  <p className="text-orange-700 mt-1">
+                    {topCategory.count} complaints ({topCategory.percentage}% of total)
+                  </p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   )
 }
